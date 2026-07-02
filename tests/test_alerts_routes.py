@@ -9,9 +9,9 @@ from app.services.users import bootstrap_admin, create_user
 
 
 @pytest.fixture
-def client(db_session):
+def client(db_session, get_db_override):
     app = create_app()
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db] = get_db_override
     return TestClient(app)
 
 
@@ -46,6 +46,16 @@ def test_inbox_renders_sidebar_when_authenticated(client, db_session):
     html = client.get("/alerts").text
     assert 'class="sidebar"' in html
     assert 'href="/systems"' in html  # a sidebar nav link (only in the authenticated shell)
+
+
+def test_login_page_renders_without_sidebar_when_unauthenticated(client, db_session):
+    # The current_user context processor must default to None for routes without an
+    # auth dependency (request.state.current_user unset), so unauthenticated pages
+    # use the plain layout — and never leak a previous request's user.
+    _login(client, db_session, "ic@x.io", Role.incident_commander)
+    client.post("/logout")
+    html = client.get("/login").text
+    assert 'class="sidebar"' not in html
 
 
 def test_readonly_cannot_declare(client, db_session):

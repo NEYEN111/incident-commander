@@ -36,6 +36,10 @@
 
   --ok: #3FD08A;
 
+  /* Neutral magnitude — bar charts / data, never actions. Kept distinct from --accent
+     so Flamingo stays reserved for urgency and primary actions, not generic series. */
+  --bar: #5E7CA3;
+
   --r:    12px;
   --r-sm: 8px;
   --gap:  16px;
@@ -273,6 +277,20 @@ label { color: var(--ink-2); }
 .kv dt { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; }
 .kv dd { margin: 0; color: var(--ink); }
 .panel-desc { color: var(--ink-2); margin: 14px 0; }
+.inc-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin: 8px 0 4px;
+}
+.inc-summary span:not(:first-child)::before {
+  content: "·";
+  margin: 0 8px;
+  color: var(--line);
+}
 .backlink { display: inline-block; margin-top: 18px; color: var(--ink-2); font-family: var(--font-mono); font-size: 12px; }
 .backlink:hover { color: var(--accent); }
 
@@ -362,9 +380,24 @@ select[multiple] option:checked { background: var(--accent-soft); color: #fff; }
   font-size: 12px; color: var(--ink-3); }
 .map-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
+/* ---------- Insights KPI tiles ---------- */
+/* Five KPIs are not five equals: Open is the one that demands attention, so it
+   gets the accent rail + label; the rest read as quiet reference numbers. */
+.kpi { flex: 1 1 150px; margin: 0; }
+.kpi-label {
+  font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-2);
+}
+.kpi-value { font-family: var(--font-serif); font-size: 28px; margin-top: 4px; color: var(--ink); }
+.kpi-primary { border-left: 3px solid var(--accent); }
+.kpi-primary .kpi-label { color: var(--accent); }
+
 /* ---------- Insights bars ---------- */
-.bar { display:inline-block; height:10px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; overflow:hidden; }
-.bar-fill { display:block; height:100%; background:var(--accent); border-radius:999px; }
+/* Magnitude bars are neutral data, not action — --bar (steel-blue) stays distinct
+   from --accent (Flamingo), which is reserved for urgency/CTAs. Severity rows pass
+   their own semantic r.color inline and override this default. */
+.bar { display:inline-block; height:10px; background:var(--surface-2); border:1px solid var(--line-soft); border-radius:999px; overflow:hidden; }
+.bar-fill { display:block; height:100%; background:var(--bar); border-radius:999px; }
 
 /* Segmented range toggle (Insights) */
 .range { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line);
@@ -423,6 +456,14 @@ select[multiple] option:checked { background: var(--accent-soft); color: #fff; }
 .tl-entry[data-kind="followup"],
 .tl-entry[data-kind="roles_changed"]                            { border-left-color: var(--sev2); }
 .tl-done { opacity: .6; }
+.tl-kind {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  margin-right: 8px;
+}
 
 /* ---------- Incident detail tabs ---------- */
 .tabs { margin-top: 16px; }

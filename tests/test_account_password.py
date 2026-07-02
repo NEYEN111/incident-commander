@@ -8,9 +8,9 @@ from app.services.users import bootstrap_admin
 
 
 @pytest.fixture
-def client(db_session):
+def client(db_session, get_db_override):
     app = create_app()
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db] = get_db_override
     return TestClient(app)
 
 

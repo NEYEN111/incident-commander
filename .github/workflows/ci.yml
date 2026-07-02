@@ -64,3 +64,11 @@ jobs:
             echo "guard did not fire — render succeeded without secrets"; exit 1
           fi
           echo "guard OK (render failed without secrets)"
+
+  smoke:
+    name: E2E smoke (Compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke test
+        run: bash scripts/smoke.sh

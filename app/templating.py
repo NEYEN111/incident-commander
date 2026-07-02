@@ -5,7 +5,17 @@ from fastapi.templating import Jinja2Templates
 from app.models import effective_role
 from app.services.markdown import render_markdown
 
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+def _auth_context(request) -> dict:
+    # get_current_user stashes the resolved user on request.state; routes without
+    # an auth dependency (login, invite, ...) never set it, so default to None.
+    return {"current_user": getattr(request.state, "current_user", None)}
+
+
+templates = Jinja2Templates(
+    directory=str(Path(__file__).parent / "templates"),
+    context_processors=[_auth_context],
+)
 
 # Available in every template (e.g. base.html nav gating).
 templates.env.globals["effective_role"] = effective_role
@@ -28,3 +38,23 @@ templates.env.filters["from_json"] = _from_json
 from app.services.custom_fields import display_value  # noqa: E402
 
 templates.env.globals["display_value"] = display_value
+
+
+def _timeago(dt) -> str:
+    if not dt:
+        return "—"
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+    d = dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+    secs = (now - d).total_seconds()
+    if secs < 60:
+        return "just now"
+    if secs < 3600:
+        return f"{int(secs // 60)}m ago"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h ago"
+    return f"{int(secs // 86400)}d ago"
+
+
+templates.env.filters["timeago"] = _timeago

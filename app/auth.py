@@ -17,12 +17,15 @@ def logout_user(request: Request) -> None:
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User | None:
+    user: User | None = None
     uid = request.session.get("user_id")
-    if uid is None:
-        return None
-    user = db.scalar(select(User).where(User.id == uid))
-    if user is None or not user.is_active:
-        return None
+    if uid is not None:
+        candidate = db.scalar(select(User).where(User.id == uid))
+        if candidate is not None and candidate.is_active:
+            user = candidate
+    # Stash for the template layer: the Jinja context processor in app.templating
+    # reads request.state.current_user so routes don't have to pass it explicitly.
+    request.state.current_user = user
     return user
 
 

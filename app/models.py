@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime
+from enum import StrEnum
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -262,6 +263,14 @@ class IncidentRoleAssignment(Base):
     __table_args__ = (
         UniqueConstraint("incident_id", "role_type_id", "user_id", name="uq_incident_role_user"),
     )
+
+
+class IntegrationState(StrEnum):
+    """Values stored in Incident.creation_state — one per integration step."""
+
+    OK = "ok"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 class Incident(Base):

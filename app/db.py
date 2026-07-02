@@ -31,7 +31,14 @@ def get_db() -> Iterator[Session]:
     if SessionLocal is None:  # pragma: no cover - init_engine always sets it
         raise RuntimeError("SessionLocal is not initialized")
     db = SessionLocal()
+    # Contract: handlers may flush(); the request commits on success and
+    # rolls back on any exception.
     try:
         yield db
+    except BaseException:
+        db.rollback()
+        raise
+    else:
+        db.commit()
     finally:
         db.close()

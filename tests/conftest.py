@@ -58,3 +58,19 @@ def db_session(pg_engine) -> Session:
         session.rollback()
         session.close()
         _truncate_all(pg_engine)
+
+
+@pytest.fixture
+def get_db_override(db_session):
+    """Dependency override mirroring get_db's commit-on-success semantics."""
+
+    def _override():
+        try:
+            yield db_session
+        except BaseException:
+            db_session.rollback()
+            raise
+        else:
+            db_session.commit()
+
+    return _override

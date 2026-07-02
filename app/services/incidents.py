@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Incident, StatusCategory, StatusLevel
+from app.models import Incident, IntegrationState, StatusCategory, StatusLevel
 
 _UNSET = object()
 
@@ -59,7 +59,11 @@ def create_incident(
         created_by=created_by,
         slack_connection_id=slack_connection_id,
         system_id=system_id,
-        creation_state={"channel": "skipped", "meet": "skipped", "announce": "skipped"},
+        creation_state={
+            "channel": IntegrationState.SKIPPED,
+            "meet": IntegrationState.SKIPPED,
+            "announce": IntegrationState.SKIPPED,
+        },
         incident_type_id=incident_type_id,
     )
     inc.components = components

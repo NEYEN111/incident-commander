@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Incident, SlackConnection
+from app.models import Incident, IntegrationState, SlackConnection
 from app.services import google, slack
 from app.settings_store import app_settings, google_settings
 
@@ -40,10 +40,10 @@ def open_incident_slack(db: Session, incident: Incident, connection: SlackConnec
             topic=topic,
             purpose=f"Incident channel for: {incident.title}",
         )
-        state["channel"] = "ok"
+        state["channel"] = IntegrationState.OK
     except Exception:  # noqa: BLE001 — partial-failure-safe; surfaced via creation_state
         log.warning("Slack channel creation failed for incident %s", incident.id, exc_info=True)
-        state["channel"] = "failed"
+        state["channel"] = IntegrationState.FAILED
         incident.creation_state = state
         db.flush()
         return
@@ -58,10 +58,10 @@ def open_incident_slack(db: Session, incident: Incident, connection: SlackConnec
             channel_id=incident.slack_channel_id,
             text=text,
         )
-        state["announce"] = "ok"
+        state["announce"] = IntegrationState.OK
     except Exception:  # noqa: BLE001
         log.warning("Slack announce failed for incident %s", incident.id, exc_info=True)
-        state["announce"] = "failed"
+        state["announce"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()
 
@@ -70,7 +70,7 @@ def open_incident_google(db: Session, incident: Incident) -> None:
     state = dict(incident.creation_state or {})
     g = google_settings(db)
     if not (g.enabled and g.service_account_json and g.impersonate_email):
-        state["meet"] = "skipped"
+        state["meet"] = IntegrationState.SKIPPED
         incident.creation_state = state
         db.flush()
         return
@@ -81,12 +81,12 @@ def open_incident_google(db: Session, incident: Incident) -> None:
         )
         incident.meet_url = link
         incident.meet_space_name = space_name
-        state["meet"] = "ok" if link else "failed"
-        state["smart_notes"] = "ok" if link else "failed"
+        state["meet"] = IntegrationState.OK if link else IntegrationState.FAILED
+        state["smart_notes"] = IntegrationState.OK if link else IntegrationState.FAILED
     except Exception:  # noqa: BLE001
         log.warning("Google Meet space creation failed for incident %s", incident.id, exc_info=True)
-        state["meet"] = "failed"
-        state["smart_notes"] = "failed"
+        state["meet"] = IntegrationState.FAILED
+        state["smart_notes"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()
 
@@ -113,10 +113,10 @@ def update_incident_slack(db: Session, incident: Incident, connection: SlackConn
             topic=topic,
             purpose=f"Incident channel for: {incident.title}",
         )
-        state["updated_announce"] = "ok"
+        state["updated_announce"] = IntegrationState.OK
     except Exception:  # noqa: BLE001
         log.warning("Slack update announce failed for incident %s", incident.id, exc_info=True)
-        state["updated_announce"] = "failed"
+        state["updated_announce"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()
 
@@ -129,10 +129,10 @@ def post_announcement(
     state = dict(incident.creation_state or {})
     try:
         slack.post_message(connection.bot_token, channel_id=incident.slack_channel_id, text=text)
-        state["update_announce"] = "ok"
+        state["update_announce"] = IntegrationState.OK
     except Exception:  # noqa: BLE001
         log.warning("Slack post-announcement failed for incident %s", incident.id, exc_info=True)
-        state["update_announce"] = "failed"
+        state["update_announce"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()
 
@@ -147,10 +147,10 @@ def close_incident_slack(db: Session, incident: Incident, connection: SlackConne
             channel_id=incident.slack_channel_id,
             text=f":white_check_mark: Incident closed: {incident.title}",
         )
-        state["closed_announce"] = "ok"
+        state["closed_announce"] = IntegrationState.OK
     except Exception:  # noqa: BLE001
         log.warning("Slack close announce failed for incident %s", incident.id, exc_info=True)
-        state["closed_announce"] = "failed"
+        state["closed_announce"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()
 
@@ -165,9 +165,9 @@ def announce_meet_in_slack(db: Session, incident: Incident, connection: SlackCon
             channel_id=incident.slack_channel_id,
             text=f":movie_camera: Meet added: {incident.meet_url}",
         )
-        state["meet_announce"] = "ok"
+        state["meet_announce"] = IntegrationState.OK
     except Exception:  # noqa: BLE001 — partial-failure-safe; surfaced via creation_state
         log.warning("Slack meet-announce failed for incident %s", incident.id, exc_info=True)
-        state["meet_announce"] = "failed"
+        state["meet_announce"] = IntegrationState.FAILED
     incident.creation_state = state
     db.flush()

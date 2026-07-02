@@ -13,6 +13,14 @@
     <span class="dot" aria-hidden="true"></span>{{ i.status.label if i.status else '—' }}
   </span>
 
+  <div class="inc-summary">
+    <span>Opened {{ i.created_at | timeago }}</span>
+    <span>{{ i.incident_type.label if i.incident_type else "No type" }}</span>
+    {% set _people = role_assignees.values() | map('list') | sum(start=[]) %}
+    <span>{% if _people %}{{ _people | map(attribute='name') | unique | join(', ') }}{% else %}Unassigned{% endif %}</span>
+    {% if i.is_private %}<span>Private</span>{% endif %}
+  </div>
+
   {% if i.description %}<div class="panel-desc">{{ i.description | markdown | safe }}</div>{% endif %}
 
   {% if "failed" in (i.creation_state or {}).values() %}
@@ -37,66 +45,75 @@
     </nav>
 
     <section class="tab-panel" id="panel-overview">
-      <dl class="kv">
-        <dt>Opened</dt><dd>{{ i.created_at.strftime("%Y-%m-%d %H:%M UTC") if i.created_at else "—" }}</dd>
-        {% if i.closed_at %}<dt>Closed</dt><dd>{{ i.closed_at.strftime("%Y-%m-%d %H:%M UTC") }}</dd>{% endif %}
-        <dt>Type</dt><dd>{{ i.incident_type.label if i.incident_type else "—" }}</dd>
-        <dt>Postmortem</dt><dd><a class="chip" href="/incidents/{{ i.id }}/postmortem">{{ "View" if i.postmortem else "Generate" }}</a></dd>
-      </dl>
+      <section class="section">
+        <h2 class="section-title">Details</h2>
+        <dl class="kv">
+          <dt>Opened</dt><dd>{{ i.created_at.strftime("%Y-%m-%d %H:%M UTC") if i.created_at else "—" }}</dd>
+          {% if i.closed_at %}<dt>Closed</dt><dd>{{ i.closed_at.strftime("%Y-%m-%d %H:%M UTC") }}</dd>{% endif %}
+          <dt>Type</dt><dd>{{ i.incident_type.label if i.incident_type else "—" }}</dd>
+        </dl>
 
-      {% if custom_fields %}
-      <div class="kv" style="align-items:start"><dt>Custom fields</dt><dd>
-        {% for f in custom_fields %}
-        <div style="margin-bottom:4px"><strong>{{ f.label }}</strong>:
-          {% set _dv = display_value(f, custom_values.get(f.id)) %}
-          {% if _dv %}{{ _dv }}{% elif f.required %}<span class="role" data-role="">missing</span>{% else %}<span class="muted">—</span>{% endif %}
-        </div>
-        {% endfor %}
-        {% if _can_manage %}
-        <details style="margin-top:6px"><summary style="cursor:pointer">Edit fields</summary>
-          <form method="post" action="/incidents/{{ i.id }}/custom-fields" style="margin-top:8px">
-            {% with fields=custom_fields, values=custom_values %}{% include "partials/custom_field_inputs.html" %}{% endwith %}
-            <button class="btn btn-sm" type="submit">Save fields</button>
-          </form>
-        </details>
+        {% if i.system %}
+        <div class="kv"><dt>System</dt><dd>
+          <a href="/systems/{{ i.system.id }}">{{ i.system.name }}</a>
+          {% if i.system.depends_on %}<span class="muted"> · depends on: {{ i.system.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}
+          {% if i.system.owner_team %}<span class="muted"> · owned by {{ i.system.owner_team.name }}</span>{% endif %}
+        </dd></div>
+        <div class="kv"><dt>Affected</dt><dd>
+          {% if i.components %}
+            {% for c in i.components %}<div><strong>{{ c.name }}</strong>{% if c.depends_on %} <span class="muted">→ {{ c.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}</div>{% endfor %}
+          {% else %}<em>Whole system</em>{% endif %}
+        </dd></div>
         {% endif %}
-      </dd></div>
-      {% endif %}
 
-      <dl class="kv">
-        <dt>Visibility</dt><dd>{{ "Private" if i.is_private else "Public" }}</dd>
-        <dt>Chat room</dt><dd>
-          {% if i.slack_channel_url %}<a class="chip" href="{{ i.slack_channel_url }}">{{ i.slack_channel_name or "open" }}</a>
-          {% elif _can_manage and _is_open and not i.slack_channel_id and slack_connections %}
-          <form method="post" action="/incidents/{{ i.id }}/open-slack" style="display:inline-flex; gap:6px; align-items:center">
-            <select name="slack_connection_id">{% for c in slack_connections %}<option value="{{ c.id }}">{{ c.team_name or c.team_id }}</option>{% endfor %}</select>
-            <button class="btn btn-sm" type="submit">Open channel</button>
-          </form>
-          {% else %}—{% endif %}
-        </dd>
-        <dt>Video call</dt><dd>
-          {% if i.meet_url %}<a class="chip" href="{{ i.meet_url }}">join</a>
-          {% elif _can_manage and _is_open and not i.meet_url and google_configured %}
-          <form method="post" action="/incidents/{{ i.id }}/add-meet" style="display:inline-flex; gap:6px; align-items:center">
-            <input type="hidden" name="video" value="meet">
-            <button class="btn btn-sm" type="submit">Add video</button>
-          </form>
-          {% else %}—{% endif %}
-        </dd>
-      </dl>
+        {% if custom_fields %}
+        <div class="kv" style="align-items:start"><dt>Custom fields</dt><dd>
+          {% for f in custom_fields %}
+          <div style="margin-bottom:4px"><strong>{{ f.label }}</strong>:
+            {% set _dv = display_value(f, custom_values.get(f.id)) %}
+            {% if _dv %}{{ _dv }}{% elif f.required %}<span class="role" data-role="">missing</span>{% else %}<span class="muted">—</span>{% endif %}
+          </div>
+          {% endfor %}
+          {% if _can_manage %}
+          <details style="margin-top:6px"><summary style="cursor:pointer">Edit fields</summary>
+            <form method="post" action="/incidents/{{ i.id }}/custom-fields" style="margin-top:8px">
+              {% with fields=custom_fields, values=custom_values %}{% include "partials/custom_field_inputs.html" %}{% endwith %}
+              <button class="btn btn-sm" type="submit">Save fields</button>
+            </form>
+          </details>
+          {% endif %}
+        </dd></div>
+        {% endif %}
 
-      {% if i.system %}
-      <div class="kv"><dt>System</dt><dd>
-        <a href="/systems/{{ i.system.id }}">{{ i.system.name }}</a>
-        {% if i.system.depends_on %}<span class="muted"> · depends on: {{ i.system.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}
-        {% if i.system.owner_team %}<span class="muted"> · owned by {{ i.system.owner_team.name }}</span>{% endif %}
-      </dd></div>
-      <div class="kv"><dt>Affected</dt><dd>
-        {% if i.components %}
-          {% for c in i.components %}<div><strong>{{ c.name }}</strong>{% if c.depends_on %} <span class="muted">→ {{ c.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}</div>{% endfor %}
-        {% else %}<em>Whole system</em>{% endif %}
-      </dd></div>
-      {% endif %}
+        <dl class="kv">
+          <dt>Postmortem</dt><dd><a class="chip" href="/incidents/{{ i.id }}/postmortem">{{ "View" if i.postmortem else "Generate" }}</a></dd>
+        </dl>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Channels</h2>
+        <dl class="kv">
+          <dt>Visibility</dt><dd>{{ "Private" if i.is_private else "Public" }}</dd>
+          <dt>Chat room</dt><dd>
+            {% if i.slack_channel_url %}<a class="chip" href="{{ i.slack_channel_url }}">{{ i.slack_channel_name or "open" }}</a>
+            {% elif _can_manage and _is_open and not i.slack_channel_id and slack_connections %}
+            <form method="post" action="/incidents/{{ i.id }}/open-slack" style="display:inline-flex; gap:6px; align-items:center">
+              <select name="slack_connection_id">{% for c in slack_connections %}<option value="{{ c.id }}">{{ c.team_name or c.team_id }}</option>{% endfor %}</select>
+              <button class="btn btn-sm" type="submit">Open channel</button>
+            </form>
+            {% else %}—{% endif %}
+          </dd>
+          <dt>Video call</dt><dd>
+            {% if i.meet_url %}<a class="chip" href="{{ i.meet_url }}">join</a>
+            {% elif _can_manage and _is_open and not i.meet_url and google_configured %}
+            <form method="post" action="/incidents/{{ i.id }}/add-meet" style="display:inline-flex; gap:6px; align-items:center">
+              <input type="hidden" name="video" value="meet">
+              <button class="btn btn-sm" type="submit">Add video</button>
+            </form>
+            {% else %}—{% endif %}
+          </dd>
+        </dl>
+      </section>
 
       {% if _can_manage %}
       <details class="section" style="margin-top:22px; padding-top:18px">
@@ -207,6 +224,7 @@
             {% endif %}
           </div>
           <div style="margin-top:3px">
+            <span class="tl-kind">{{ e.entry_type | replace('_',' ') }}</span>
             {% if e.entry_type in ("note", "update") %}{{ e.body | markdown | safe }}{% else %}{{ e.body }}{% endif %}
           </div>
         </div>

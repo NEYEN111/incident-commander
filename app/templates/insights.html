@@ -11,11 +11,11 @@
 <p class="page-sub">Analytics across your incidents — MTTR, volumes, and breakdowns by severity, type, status, system and team.</p>
 
 <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px">
-  {% for label, value in [("Incidents", data.total), ("Open", data.open), ("Closed", data.closed),
-                          ("MTTR", data.mttr or "—"), ("Open follow-ups", data.open_followups)] %}
-  <div class="card" style="flex:1 1 150px; margin:0">
-    <div class="muted" style="font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em">{{ label }}</div>
-    <div style="font-family:var(--font-serif); font-size:28px; margin-top:4px">{{ value }}</div>
+  {% for label, value, primary in [("Open", data.open, true), ("Incidents", data.total, false), ("Closed", data.closed, false),
+                          ("MTTR", data.mttr or "—", false), ("Open follow-ups", data.open_followups, false)] %}
+  <div class="card kpi{% if primary %} kpi-primary{% endif %}">
+    <div class="kpi-label">{{ label }}</div>
+    <div class="kpi-value">{{ value }}</div>
   </div>
   {% endfor %}
 </div>
@@ -31,7 +31,7 @@
   <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px">
     <span style="flex:0 0 160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.label }}</span>
     <span class="bar" style="flex:1 1 auto"><span class="bar-fill" style="width:{{ (r.count / maxc * 100) | round }}%{% if r.color %}; background:{{ r.color }}{% endif %}"></span></span>
-    <b style="flex:0 0 32px; text-align:right">{{ r.count }}</b>
+    <span style="flex:0 0 68px; text-align:right"><b>{{ r.count }}</b> <span class="muted" style="font-size:11px">{{ (r.count / data.total * 100) | round }}%</span></span>
   </div>
   {% endfor %}
 </div>

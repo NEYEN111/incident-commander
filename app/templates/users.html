@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-head">
-  <h1>Users</h1>
+  <h1>Usuarios</h1>
   <span class="stats">{{ users | length }} total</span>
 </div>
-<p class="page-sub">Manage user accounts — invite people, assign roles, and reset access.</p>
+<p class="page-sub">Administra usuarios, grupos y permisos de acceso.</p>
 
 <div class="card">
-  <h2>Invite a user</h2>
+  <h2>Crear usuario</h2>
   <form class="form-row" method="post" action="/users">
-    <input class="grow" name="email" type="email" placeholder="email" required autocomplete="off">
-    <input name="name" placeholder="name" required autocomplete="off">
-    <select name="role" aria-label="Role">{% for r in roles %}<option value="{{ r.value }}">{{ r.value }}</option>{% endfor %}</select>
-    <button class="btn btn-primary" type="submit">Create user</button>
+    <input class="grow" name="email" type="email" placeholder="Correo electrónico" required autocomplete="off">
+    <input name="name" placeholder="Nombre" required autocomplete="off">
+    <select name="role" aria-label="Rol">{% for r in roles %}<option value="{{ r.value | ui_es }}">{{ r.value | ui_es }}</option>{% endfor %}</select>
+    <button class="btn btn-primary" type="submit">Crear usuario</button>
   </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">A temporary password is generated and shown once after creation; the user changes it on first login.</p>
+  <p class="muted" style="margin:10px 0 0; font-size:12.5px">Se genera una contraseña temporal que se muestra una sola vez. El usuario deberá cambiarla al iniciar sesión.</p>
 </div>
 
 <div class="card">
-  <h2>Members</h2>
+  <h2>Usuarios registrados</h2>
   <table>
-    <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Active</th><th>Groups</th><th></th></tr></thead>
+    <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Grupos</th><th></th></tr></thead>
     <tbody>
     {% for u in users %}
       {% set er = effective_role(u) %}
       {% set member_ids = u.groups | map(attribute="id") | list %}
       <tr>
-        <td>{{ u.email }}{% if u.is_protected_admin %} <span class="muted">· protected</span>{% endif %}</td>
+        <td>{{ u.email }}{% if u.is_protected_admin %} <span class="muted">· protegido</span>{% endif %}</td>
         <td>{{ u.name }}</td>
-        <td>{% if er %}<span class="role" data-role="{{ er.value }}">{{ er.value }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-        <td>{% if u.is_active %}<span class="badge-yes">active</span>{% else %}<span class="badge-no">disabled</span>{% endif %}</td>
+        <td>{% if er %}<span class="role" data-role="{{ er.value | ui_es }}">{{ er.value | ui_es }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if u.is_active %}<span class="badge-yes">activo</span>{% else %}<span class="badge-no">inactivo</span>{% endif %}</td>
         <td>
           <form class="form-row" method="post" action="/users/{{ u.id }}/groups">
             <select name="group_ids" multiple size="{{ groups | length }}">
               {% for g in groups %}
-                <option value="{{ g.id }}" {% if g.id in member_ids %}selected{% endif %}>{{ g.name }}</option>
+                <option value="{{ g.id }}" {% if g.id in member_ids %}selected{% endif %}>{{ g.name | ui_es }}</option>
               {% endfor %}
             </select>
-            <button class="btn btn-sm" type="submit">Save</button>
+            <button class="btn btn-sm" type="submit">Guardar</button>
           </form>
         </td>
         <td>{% if not u.is_protected_admin and u.is_active %}
-          <form method="post" action="/users/{{ u.id }}/deactivate"><button class="btn btn-sm">Deactivate</button></form>
+          <form method="post" action="/users/{{ u.id }}/deactivate"><button class="btn btn-sm">Desactivar</button></form>
         {% endif %}</td>
       </tr>
     {% endfor %}
@@ -49,5 +49,5 @@
   </table>
 </div>
 
-<p><a class="backlink" href="/groups">→ Manage groups</a></p>
+<p><a class="backlink" href="/groups">→ Administrar grupos</a></p>
 {% endblock %}

@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import Settings, get_settings
 from app.crypto import build_fernet, set_fernet
+from app.i18n import APP_NAME
 from app.routers import account as account_router
 from app.routers import alerts as alerts_router
 from app.routers import auth as auth_router
@@ -68,7 +69,7 @@ def create_app() -> FastAPI:
             db_gen.close()
         yield
 
-    app = FastAPI(title="Incident Commander", lifespan=lifespan)
+    app = FastAPI(title=APP_NAME, lifespan=lifespan)
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.session_secret,

@@ -165,7 +165,7 @@ def test_create_user_keeps_user_when_invite_email_fails(client, db_session, monk
     )
     # email failed, but the user is kept (inactive) and the failure is surfaced, not a 500
     assert r.status_code == 200
-    assert "failed" in r.text.lower()
+    assert "no se pudo enviar la invitación" in r.text.lower()
     u = db_session.scalar(select(User).where(User.email == "dev@x.io"))
     assert u is not None and u.is_active is False
 
@@ -182,5 +182,5 @@ def test_create_duplicate_email_is_graceful(client, db_session):
         follow_redirects=True,
     )
     assert r.status_code == 200  # graceful, not a 500
-    assert "already exists" in r.text.lower()
+    assert "ya existe un usuario" in r.text.lower()
     assert len(list(db_session.scalars(select(User).where(User.email == "dup@x.io")))) == 1

@@ -10,24 +10,17 @@
     <h1 style="margin:0">{{ i.title }}</h1>
   </div>
   <span class="status" data-status="{{ i.status.category.value if i.status else 'active' }}">
-    <span class="dot" aria-hidden="true"></span>{{ i.status.label if i.status else '—' }}
+    <span class="dot" aria-hidden="true"></span>{{ i.status.label | ui_es if i.status else '—' }}
   </span>
 
   <div class="inc-summary">
-    <span>Opened {{ i.created_at | timeago }}</span>
-    <span>{{ i.incident_type.label if i.incident_type else "No type" }}</span>
+    <span>Registrado {{ i.created_at | timeago }}</span>
     {% set _people = role_assignees.values() | map('list') | sum(start=[]) %}
-    <span>{% if _people %}{{ _people | map(attribute='name') | unique | join(', ') }}{% else %}Unassigned{% endif %}</span>
-    {% if i.is_private %}<span>Private</span>{% endif %}
+    <span>{% if _people %}{{ _people | map(attribute='name') | unique | join(', ') }}{% else %}Sin asignar{% endif %}</span>
+    {% if i.is_private %}<span>Privado</span>{% endif %}
   </div>
 
   {% if i.description %}<div class="panel-desc">{{ i.description | markdown | safe }}</div>{% endif %}
-
-  {% if "failed" in (i.creation_state or {}).values() %}
-  <div class="alert">Some integration steps failed:
-    {% for k, v in i.creation_state.items() %}{% if v == "failed" %}<code>{{ k }}</code> {% endif %}{% endfor %}
-    — check the integration connection and try again.</div>
-  {% endif %}
 
   {# --- tabs --- #}
   <div class="tabs">
@@ -35,134 +28,71 @@
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-roles">
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-timeline">
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-followups">
-    {% if i.alerts %}<input class="tab-radio" type="radio" name="inc-tab" id="tab-alerts">{% endif %}
     <nav class="tab-bar" role="tablist">
-      <label for="tab-overview">Overview</label>
+      <label for="tab-overview">Resumen</label>
       <label for="tab-roles">Roles</label>
-      <label for="tab-timeline">Timeline</label>
-      <label for="tab-followups">Follow-ups{% if followups_open %} ({{ followups_open }}){% endif %}</label>
-      {% if i.alerts %}<label for="tab-alerts">Alerts</label>{% endif %}
+      <label for="tab-timeline">Cronología</label>
+      <label for="tab-followups">Seguimiento{% if followups_open %} ({{ followups_open }}){% endif %}</label>
     </nav>
 
     <section class="tab-panel" id="panel-overview">
       <section class="section">
-        <h2 class="section-title">Details</h2>
+        <h2 class="section-title">Datos del registro</h2>
         <dl class="kv">
-          <dt>Opened</dt><dd>{{ i.created_at.strftime("%Y-%m-%d %H:%M UTC") if i.created_at else "—" }}</dd>
-          {% if i.closed_at %}<dt>Closed</dt><dd>{{ i.closed_at.strftime("%Y-%m-%d %H:%M UTC") }}</dd>{% endif %}
-          <dt>Type</dt><dd>{{ i.incident_type.label if i.incident_type else "—" }}</dd>
+          <dt>Registrado</dt><dd>{{ i.created_at.strftime("%Y-%m-%d %H:%M UTC") if i.created_at else "—" }}</dd>
+          {% if i.closed_at %}<dt>Cerrado</dt><dd>{{ i.closed_at.strftime("%Y-%m-%d %H:%M UTC") }}</dd>{% endif %}
         </dl>
 
-        {% if i.system %}
-        <div class="kv"><dt>System</dt><dd>
-          <a href="/systems/{{ i.system.id }}">{{ i.system.name }}</a>
-          {% if i.system.depends_on %}<span class="muted"> · depends on: {{ i.system.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}
-          {% if i.system.owner_team %}<span class="muted"> · owned by {{ i.system.owner_team.name }}</span>{% endif %}
-        </dd></div>
-        <div class="kv"><dt>Affected</dt><dd>
-          {% if i.components %}
-            {% for c in i.components %}<div><strong>{{ c.name }}</strong>{% if c.depends_on %} <span class="muted">→ {{ c.depends_on | map(attribute='name') | join(', ') }}</span>{% endif %}</div>{% endfor %}
-          {% else %}<em>Whole system</em>{% endif %}
-        </dd></div>
-        {% endif %}
+        <h2 class="section-title">Datos del accidente</h2>
+        <dl class="kv">
+          {% for name, spec in road_fields.items() %}
+          <dt>{{ spec.label }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
+          {% endfor %}
+        </dl>
 
         {% if custom_fields %}
-        <div class="kv" style="align-items:start"><dt>Custom fields</dt><dd>
+        <div class="kv" style="align-items:start"><dt>Campos adicionales</dt><dd>
           {% for f in custom_fields %}
           <div style="margin-bottom:4px"><strong>{{ f.label }}</strong>:
             {% set _dv = display_value(f, custom_values.get(f.id)) %}
-            {% if _dv %}{{ _dv }}{% elif f.required %}<span class="role" data-role="">missing</span>{% else %}<span class="muted">—</span>{% endif %}
+            {% if _dv %}{{ _dv }}{% elif f.required %}<span class="role" data-role="">sin datos</span>{% else %}<span class="muted">—</span>{% endif %}
           </div>
           {% endfor %}
           {% if _can_manage %}
-          <details style="margin-top:6px"><summary style="cursor:pointer">Edit fields</summary>
+          <details style="margin-top:6px"><summary style="cursor:pointer">Editar campos</summary>
             <form method="post" action="/incidents/{{ i.id }}/custom-fields" style="margin-top:8px">
               {% with fields=custom_fields, values=custom_values %}{% include "partials/custom_field_inputs.html" %}{% endwith %}
-              <button class="btn btn-sm" type="submit">Save fields</button>
+              <button class="btn btn-sm" type="submit">Guardar campos</button>
             </form>
           </details>
           {% endif %}
         </dd></div>
         {% endif %}
 
-        <dl class="kv">
-          <dt>Postmortem</dt><dd><a class="chip" href="/incidents/{{ i.id }}/postmortem">{{ "View" if i.postmortem else "Generate" }}</a></dd>
-        </dl>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">Channels</h2>
-        <dl class="kv">
-          <dt>Visibility</dt><dd>{{ "Private" if i.is_private else "Public" }}</dd>
-          <dt>Chat room</dt><dd>
-            {% if i.slack_channel_url %}<a class="chip" href="{{ i.slack_channel_url }}">{{ i.slack_channel_name or "open" }}</a>
-            {% elif _can_manage and _is_open and not i.slack_channel_id and slack_connections %}
-            <form method="post" action="/incidents/{{ i.id }}/open-slack" style="display:inline-flex; gap:6px; align-items:center">
-              <select name="slack_connection_id">{% for c in slack_connections %}<option value="{{ c.id }}">{{ c.team_name or c.team_id }}</option>{% endfor %}</select>
-              <button class="btn btn-sm" type="submit">Open channel</button>
-            </form>
-            {% else %}—{% endif %}
-          </dd>
-          <dt>Video call</dt><dd>
-            {% if i.meet_url %}<a class="chip" href="{{ i.meet_url }}">join</a>
-            {% elif _can_manage and _is_open and not i.meet_url and google_configured %}
-            <form method="post" action="/incidents/{{ i.id }}/add-meet" style="display:inline-flex; gap:6px; align-items:center">
-              <input type="hidden" name="video" value="meet">
-              <button class="btn btn-sm" type="submit">Add video</button>
-            </form>
-            {% else %}—{% endif %}
-          </dd>
-        </dl>
       </section>
 
       {% if _can_manage %}
       <details class="section" style="margin-top:22px; padding-top:18px">
-        <summary style="cursor:pointer;font-weight:600">Edit incident</summary>
+        <summary style="cursor:pointer;font-weight:600">Editar accidente</summary>
         <form method="post" action="/incidents/{{ i.id }}/edit" style="margin-top:.75rem">
           <div style="margin-bottom:.5rem">
-            <label for="edit-title">Title</label><br>
+            <label for="edit-title">Título</label><br>
             <input id="edit-title" name="title" type="text" value="{{ i.title }}" required style="width:100%">
           </div>
           <div style="margin-bottom:.5rem">
-            <label for="edit-description">Description</label><br>
+            <label for="edit-description">Descripción</label><br>
             <textarea id="edit-description" name="description" rows="4" style="width:100%">{{ i.description or "" }}</textarea>
           </div>
-          {% if incident_types %}
           <div style="margin-bottom:.5rem">
-            <label for="edit-type">Type</label><br>
-            <select id="edit-type" name="incident_type_id">
-              <option value="">No type</option>
-              {% for t in incident_types %}
-              <option value="{{ t.id }}"{% if t.id == i.incident_type_id %} selected{% endif %}>{{ t.label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          {% endif %}
-          <div style="margin-bottom:.5rem">
-            <label for="edit-severity">Severity</label><br>
+            <label for="edit-severity">Prioridad operativa</label><br>
             <select id="edit-severity" name="severity_level_id" required>
               {% for lvl in severity_levels %}
               <option value="{{ lvl.id }}"{% if lvl.id == i.severity_level_id %} selected{% endif %}>{{ lvl.label }}</option>
               {% endfor %}
             </select>
           </div>
-          {% if systems %}
-          <div style="margin-bottom:.5rem">
-            <label for="edit-system">System</label><br>
-            <select id="edit-system" name="system_id"
-                    hx-get="/incidents/component-options" hx-target="#edit-components" hx-swap="innerHTML" hx-trigger="change">
-              <option value="">No system</option>
-              {% for s in systems %}<option value="{{ s.id }}"{% if s.id == i.system_id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div style="margin-bottom:.5rem">
-            <label for="edit-components">Affected components</label><br>
-            <select id="edit-components" name="component_ids" multiple size="4" style="width:100%">
-              {% if i.system %}{% for c in i.system.components %}<option value="{{ c.id }}"{% if c in i.components %} selected{% endif %}>{{ c.name }}</option>{% endfor %}{% endif %}
-            </select>
-          </div>
-          {% endif %}
-          <button class="btn" type="submit">Save changes</button>
+          {% with road_data=road_values(i), field_prefix='edit' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+          <button class="btn" type="submit">Guardar cambios</button>
         </form>
       </details>
       {% endif %}
@@ -175,143 +105,129 @@
         {% set _assigned = role_assignees.get(rt.id, []) %}
         {% set _assigned_ids = _assigned | map(attribute='id') | list %}
         <div class="role-row">
-          <span class="role-name">{{ rt.label }}</span>
-          <span class="assignees">{% if _assigned %}{{ _assigned | map(attribute='name') | join(', ') }}{% else %}<span class="muted">unassigned</span>{% endif %}</span>
+          <span class="role-name">{{ rt.label | ui_es }}</span>
+          <span class="assignees">{% if _assigned %}{{ _assigned | map(attribute='name') | join(', ') }}{% else %}<span class="muted">sin asignar</span>{% endif %}</span>
         </div>
         {% if _can_manage %}
         <details class="role-edit">
-          <summary>Assign</summary>
+          <summary>Asignar</summary>
           <form method="post" action="/incidents/{{ i.id }}/roles" style="margin-top:6px; display:flex; gap:6px; align-items:flex-start">
             <input type="hidden" name="role_type_id" value="{{ rt.id }}">
             <select name="user_ids" multiple size="3">
               {% for u in assignable_users %}<option value="{{ u.id }}"{% if u.id in _assigned_ids %} selected{% endif %}>{{ u.name }}</option>{% endfor %}
             </select>
-            <button class="btn btn-sm" type="submit">Save</button>
+            <button class="btn btn-sm" type="submit">Guardar</button>
           </form>
         </details>
         {% endif %}
         {% endfor %}
-        {% if not role_types %}<span class="muted">No roles configured</span>{% endif %}
+        {% if not role_types %}<span class="muted">No hay roles configurados</span>{% endif %}
       </section>
     </section>
 
     <section class="tab-panel" id="panel-timeline">
       <section class="section">
-        <h2 class="section-title">Timeline</h2>
+        <h2 class="section-title">Cronología</h2>
         {% if _can_manage %}
         <form method="post" action="/incidents/{{ i.id }}/notes" style="margin-bottom:12px">
-          <textarea name="body" placeholder="Add a note (Markdown supported)…" required style="width:100%"></textarea>
-          <div style="margin-top:6px"><button class="btn btn-sm" type="submit">Add note</button></div>
+          <textarea name="body" placeholder="Escribe una nota…" required style="width:100%"></textarea>
+          <div style="margin-top:6px"><button class="btn btn-sm" type="submit">Añadir nota</button></div>
         </form>
         {% endif %}
         {% for e in events %}
         <div class="tl-entry{% if e.pinned %} tl-pinned{% endif %}" data-kind="{{ e.entry_type }}">
           <div class="inc-meta" style="margin:0">
-            {% if e.pinned %}<span title="pinned">📌</span> {% endif %}
-            {% if e.entry_type == "update" %}<span title="stakeholder update">📣</span> {% endif %}
-            <span>{{ e.created_at.strftime("%b %d · %H:%M") if e.created_at else "" }}</span>
-            <span>· {{ e.created_by_user.name if e.created_by_user else "system" }}</span>
+            {% if e.pinned %}<span title="fijada">📌</span> {% endif %}
+            {% if e.entry_type == "update" %}<span title="actualización">📣</span> {% endif %}
+            <span>{{ e.created_at.strftime("%d/%m/%Y · %H:%M") if e.created_at else "" }}</span>
+            <span>· {{ e.created_by_user.name if e.created_by_user else "sistema" }}</span>
             {% if _can_manage %}
             <form method="post" action="/incidents/{{ i.id }}/events/{{ e.id }}/pin" style="display:inline">
-              <button class="chip" type="submit">{{ "unpin" if e.pinned else "pin" }}</button>
+              <button class="chip" type="submit">{{ "Desfijar" if e.pinned else "Fijar" }}</button>
             </form>
             {% if e.entry_type == "note" %}
             <form method="post" action="/incidents/{{ i.id }}/events/{{ e.id }}/delete" style="display:inline"
-                  onsubmit="return confirm('Delete this note?')">
-              <button class="chip" type="submit">delete</button>
+                  onsubmit="return confirm('¿Eliminar esta nota?')">
+              <button class="chip" type="submit">Eliminar</button>
             </form>
             {% endif %}
             {% endif %}
           </div>
           <div style="margin-top:3px">
-            <span class="tl-kind">{{ e.entry_type | replace('_',' ') }}</span>
-            {% if e.entry_type in ("note", "update") %}{{ e.body | markdown | safe }}{% else %}{{ e.body }}{% endif %}
+            <span class="tl-kind">{{ e.entry_type | ui_es }}</span>
+            {% if e.entry_type in ("note", "update") %}{{ e.body | markdown | safe }}{% else %}{{ e.body | ui_es }}{% endif %}
           </div>
         </div>
         {% else %}
-        <span class="muted">No activity yet.</span>
+        <span class="muted">Todavía no hay actividad.</span>
         {% endfor %}
       </section>
     </section>
 
     <section class="tab-panel" id="panel-followups">
       <section class="section">
-        <h2 class="section-title">Follow-ups{% if followups_open %} <span class="count">{{ followups_open }} open</span>{% endif %}</h2>
+        <h2 class="section-title">Seguimiento{% if followups_open %} <span class="count">{{ followups_open }} pendientes</span>{% endif %}</h2>
         {% if _can_manage %}
         <form method="post" action="/incidents/{{ i.id }}/followups" style="margin-bottom:12px">
-          <input name="title" placeholder="Action item…" required maxlength="300" style="width:100%; margin-bottom:6px">
-          <textarea name="description" placeholder="Details (optional)" style="width:100%; margin-bottom:6px"></textarea>
+          <input name="title" placeholder="Tarea de seguimiento…" required maxlength="300" style="width:100%; margin-bottom:6px">
+          <textarea name="description" placeholder="Descripción (opcional)" style="width:100%; margin-bottom:6px"></textarea>
           <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center">
-            <select name="assignee_id"><option value="">Unassigned</option>{% for u in assignable_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+            <select name="assignee_id"><option value="">Sin asignar</option>{% for u in assignable_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
             <input type="date" name="due_on">
-            <button class="btn btn-sm" type="submit">Add follow-up</button>
+            <button class="btn btn-sm" type="submit">Añadir tarea</button>
           </div>
         </form>
         {% endif %}
         {% for f in follow_ups %}
         <div class="tl-entry{% if not f.is_open %} tl-done{% endif %}" data-kind="followup">
           <div style="display:flex; gap:8px; align-items:baseline; flex-wrap:wrap">
-            <span class="status" data-status="{{ 'active' if f.is_open else 'closed' }}"><span class="dot"></span>{{ f.status }}</span>
+            <span class="status" data-status="{{ 'active' if f.is_open else 'closed' }}"><span class="dot"></span>{{ f.status | ui_es }}</span>
             <strong>{{ f.title }}</strong>
           </div>
           <div class="inc-meta" style="margin-top:3px">
-            <span>{{ f.assignee.name if f.assignee else "unassigned" }}</span>
-            {% if f.due_on %}<span>· due {{ f.due_on.strftime("%b %d") }}</span>{% endif %}
+            <span>{{ f.assignee.name if f.assignee else "sin asignar" }}</span>
+            {% if f.due_on %}<span>· vence {{ f.due_on.strftime("%d/%m/%Y") }}</span>{% endif %}
           </div>
           {% if f.description %}<div style="margin-top:3px" class="muted">{{ f.description }}</div>{% endif %}
           {% if _can_manage %}
           <div style="margin-top:5px; display:flex; gap:6px; flex-wrap:wrap">
             {% if f.is_open %}
-            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="completed"><button class="chip" type="submit">complete</button></form>
-            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="cancelled"><button class="chip" type="submit">cancel</button></form>
+            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="completed"><button class="chip" type="submit">Completar</button></form>
+            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="cancelled"><button class="chip" type="submit">Cancelar</button></form>
             {% else %}
-            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="open"><button class="chip" type="submit">reopen</button></form>
+            <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="open"><button class="chip" type="submit">Reabrir</button></form>
             {% endif %}
-            <form method="post" action="/followups/{{ f.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this follow-up?')"><button class="chip" type="submit">delete</button></form>
+            <form method="post" action="/followups/{{ f.id }}/delete" style="display:inline" onsubmit="return confirm('¿Eliminar esta tarea?')"><button class="chip" type="submit">Eliminar</button></form>
           </div>
           {% endif %}
         </div>
         {% else %}
-        <span class="muted">No follow-ups yet.</span>
+        <span class="muted">Todavía no hay tareas de seguimiento.</span>
         {% endfor %}
       </section>
     </section>
 
-    {% if i.alerts %}
-    <section class="tab-panel" id="panel-alerts">
-      <section class="section">
-        <h2 class="section-title">Related alerts</h2>
-        {% for a in i.alerts %}
-        <div class="tl-entry" data-kind="{{ 'update' if a.status == 'firing' else 'closed' }}">
-          <span class="status" data-status="{{ 'active' if a.status == 'firing' else 'closed' }}"><span class="dot"></span>{{ a.status }}</span>
-          <strong>{{ a.title }}</strong>
-          <div class="inc-meta" style="margin-top:3px"><span>{{ a.source }}</span><span>· seen {{ a.occurrence_count }}×</span></div>
-        </div>
-        {% endfor %}
-      </section>
-    </section>
-    {% endif %}
   </div>
 
   {# --- respond (always visible) --- #}
   {% if _can_manage %}
   <section class="respond">
-    <h2 class="section-title">Respond</h2>
+    <h2 class="section-title">Actualizar registro</h2>
     <form method="post" action="/incidents/{{ i.id }}/updates">
-      <textarea name="message" placeholder="Post an update for stakeholders… (Markdown)" required style="width:100%"></textarea>
+      <textarea name="message" placeholder="Escribe una actualización…" required style="width:100%"></textarea>
       <div class="respond-row">
-        <select name="status_id"><option value="">— keep status —</option>{% for s in status_levels %}<option value="{{ s.id }}">{{ s.label }}</option>{% endfor %}</select>
-        <button class="btn btn-primary btn-sm" type="submit">Post update</button>
+        <select name="status_id"><option value="">— conservar estado —</option>{% for s in status_levels %}<option value="{{ s.id }}">{{ s.label | ui_es }}</option>{% endfor %}</select>
+        <button class="btn btn-primary btn-sm" type="submit">Publicar actualización</button>
       </div>
     </form>
     <form method="post" action="/incidents/{{ i.id }}/status" class="respond-row"
           style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft)">
-      <span class="muted" style="font-family:var(--font-mono); font-size:11.5px">Change status only</span>
-      <select name="status_id">{% for s in status_levels %}<option value="{{ s.id }}"{% if s.id == i.status_id %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select>
-      <button class="btn btn-sm" type="submit">Update status</button>
+      <span class="muted" style="font-family:var(--font-mono); font-size:11.5px">Cambiar estado</span>
+      <select name="status_id">{% for s in status_levels %}<option value="{{ s.id }}"{% if s.id == i.status_id %} selected{% endif %}>{{ s.label | ui_es }}</option>{% endfor %}</select>
+      <button class="btn btn-sm" type="submit">Guardar estado</button>
     </form>
   </section>
   {% endif %}
-  <a class="backlink" href="/">← All incidents</a>
+  <a class="backlink" href="/">← Todos los accidentes</a>
 </div>
 {% endblock %}

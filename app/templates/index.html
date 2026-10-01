@@ -2,54 +2,27 @@
 {% block content %}
 {% set open_count = incidents | rejectattr('is_closed') | list | length %}
 <div class="page-head">
-  <h1>Incidents</h1>
-  <span class="stats"><b>{{ open_count }}</b> open <span class="sep">/</span> {{ incidents | length }} total</span>
+  <h1>Accidentes viales</h1>
+  <span class="stats"><b>{{ open_count }}</b> abiertos <span class="sep">/</span> {{ incidents | length }} total</span>
 </div>
-<p class="page-sub">Declare and run incidents in one place — severity, status, roles, timeline, follow-ups and integrations.</p>
-
+<p class="page-sub">Registra accidentes y consulta sus datos, estado, responsables y cronología.</p>
 {% set _role = effective_role(current_user) %}
 {% if _role and _role.value in ("admin", "incident_commander") %}
-<form class="create" hx-post="/incidents" hx-target="#incident-list" hx-swap="afterbegin">
-  <input class="title-input" name="title" placeholder="What's happening?" required autocomplete="off">
-  {% if incident_types %}
-  <select name="incident_type_id" aria-label="Type"
-          hx-get="/incidents/type-options" hx-target="#type-driven" hx-swap="innerHTML" hx-trigger="change">
-    {% for t in incident_types %}<option value="{{ t.id }}"{{ ' selected' if t.id == default_incident_type_id }}>{{ t.label }}</option>{% endfor %}
-  </select>
-  {% endif %}
-  <span id="type-driven">
-  <select id="sev-select" name="severity_level_id" aria-label="Severity">
-    {% for lvl in severity_levels %}<option value="{{ lvl.id }}" {{ 'selected' if lvl.id == default_severity_level_id }}>{{ lvl.label }}</option>{% endfor %}
-  </select>
-  <div id="custom-fields">{% include "partials/custom_field_inputs.html" %}</div>
-  </span>
-  <textarea name="description" placeholder="Description (Markdown supported)"></textarea>
-  {% if systems %}
-  <select name="system_id" aria-label="System"
-          hx-get="/incidents/component-options" hx-target="#create-components"
-          hx-swap="innerHTML" hx-trigger="change">
-    <option value="">No system</option>
-    {% for s in systems %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-  </select>
-  <select id="create-components" name="component_ids" multiple aria-label="Affected components"></select>
-  {% endif %}
-  <label class="check"><input type="checkbox" name="is_private" value="true"> Private</label>
-  {% if slack_connections %}
-  <select name="slack_connection_id" aria-label="Chat room">
-    <option value="">No chat room</option>
-    {% for c in slack_connections %}<option value="{{ c.id }}">{{ c.team_name or c.team_id }}</option>{% endfor %}
-  </select>
-  {% endif %}
-  <select name="video" aria-label="Video call">
-    <option value="">No video call</option>
-    {% if google_configured %}<option value="meet">Google Meet</option>{% endif %}
-  </select>
-  <button class="btn btn-primary" type="submit">Declare incident</button>
+<form class="create" method="post" action="/incidents">
+  <label class="field-block grow"><span>Título *</span><input class="title-input" name="title" placeholder="Resumen del accidente" required maxlength="300" autocomplete="off"></label>
+  <label class="field-block"><span>Prioridad operativa</span>
+    <select name="severity_level_id" aria-label="Prioridad operativa">
+    {% for lvl in severity_levels %}<option value="{{ lvl.id }}"{% if lvl.id == default_severity_level_id %} selected{% endif %}>{{ lvl.label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="field-block road-fields"><span>Descripción</span><textarea name="description" placeholder="Descripción del accidente"></textarea></label>
+  {% with road_data={}, field_prefix='create' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+  <label class="check"><input type="checkbox" name="is_private" value="true"> Registro privado</label>
+  <button class="btn btn-primary" type="submit">Registrar accidente</button>
 </form>
 {% endif %}
-
 <div class="incident-list" id="incident-list">
   {% for i in incidents %}{% include "partials/incident_row.html" %}{% endfor %}
-  <div class="empty">No incidents. The board is quiet.</div>
+  <div class="empty">Todavía no hay accidentes registrados.</div>
 </div>
 {% endblock %}

@@ -1,21 +1,24 @@
 from __future__ import annotations
 
 import enum
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import StrEnum
 
 import sqlalchemy as sa
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
     Table,
     Text,
+    Time,
     UniqueConstraint,
     func,
 )
@@ -278,6 +281,36 @@ class Incident(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    road_type: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    speed_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    urban_or_rural_area: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    light_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weather_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    road_surface_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    __table_args__ = (
+        CheckConstraint("latitude BETWEEN -90 AND 90", name="ck_incidents_latitude"),
+        CheckConstraint("longitude BETWEEN -180 AND 180", name="ck_incidents_longitude"),
+        CheckConstraint("road_type IN (1, 2, 3, 6, 7, 9)", name="ck_incidents_road_type"),
+        CheckConstraint("speed_limit BETWEEN 1 AND 200", name="ck_incidents_speed_limit"),
+        CheckConstraint(
+            "urban_or_rural_area IN (1, 2, 3)", name="ck_incidents_urban_or_rural_area"
+        ),
+        CheckConstraint(
+            "light_conditions IN (1, 4, 5, 6, 7)", name="ck_incidents_light_conditions"
+        ),
+        CheckConstraint(
+            "weather_conditions IN (1, 2, 3, 4, 5, 6, 7, 8, 9)",
+            name="ck_incidents_weather_conditions",
+        ),
+        CheckConstraint(
+            "road_surface_conditions IN (1, 2, 3, 4, 5)",
+            name="ck_incidents_road_surface_conditions",
+        ),
+    )
     severity_level_id: Mapped[int | None] = mapped_column(
         ForeignKey("severity_levels.id"), nullable=True
     )

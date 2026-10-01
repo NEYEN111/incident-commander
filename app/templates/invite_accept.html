@@ -2,17 +2,17 @@
 {% block content %}
 <div class="auth">
   <form class="auth-card" method="post" action="/invite/accept">
-    <div class="mark">Incident Commander</div>
-    <h1>Set your password</h1>
-    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <div class="mark">{{ app_name }}</div>
+    <h1>Configura tu contraseña</h1>
+    {% if error %}<div class="alert">{{ error | ui_es }}</div>{% endif %}
     {% if valid %}
       <input type="hidden" name="token" value="{{ token }}">
-      <label class="field"><span>New password</span><input type="password" name="new_password" required autofocus></label>
-      <label class="field"><span>Confirm</span><input type="password" name="confirm" required></label>
-      <button class="btn btn-primary" type="submit">Activate account</button>
+      <label class="field"><span>Nueva contraseña</span><input type="password" name="new_password" required autofocus></label>
+      <label class="field"><span>Confirmar contraseña</span><input type="password" name="confirm" required></label>
+      <button class="btn btn-primary" type="submit">Activar cuenta</button>
     {% else %}
-      <p class="muted">Ask an administrator for a new invitation.</p>
-      <a class="btn" href="/login">Back to sign in</a>
+      <p class="muted">Solicita una nueva invitación al administrador.</p>
+      <a class="btn" href="/login">Volver al inicio de sesión</a>
     {% endif %}
   </form>
 </div>

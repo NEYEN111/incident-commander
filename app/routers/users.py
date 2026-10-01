@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_role
 from app.config import get_settings
 from app.db import get_db
+from app.i18n import APP_NAME
 from app.models import Group, Role, User, effective_role
 from app.security.passwords import generate_password
 from app.services.email import is_smtp_configured, send_email
@@ -50,7 +51,7 @@ def users_create(
     smtp = smtp_settings(db)
     norm_email = email.strip().lower()
     if db.scalar(select(User).where(User.email == norm_email)):
-        request.session["flash"] = f"A user with email {norm_email} already exists."
+        request.session["flash"] = f"Ya existe un usuario con el correo {norm_email}."
         return RedirectResponse("/users", status_code=303)
     if is_smtp_configured(smtp):
         target = create_user(db, email=email, name=name, role=role, password=None)
@@ -64,13 +65,15 @@ def users_create(
             send_email(
                 smtp,
                 to=target.email,
-                subject="You're invited to Incident Commander",
+                subject=f"Invitación a {APP_NAME}",
                 text_body=templates.get_template("email/invite.txt").render(ctx),
                 html_body=templates.get_template("email/invite.html").render(ctx),
             )
-            request.session["flash"] = f"Invitation emailed to {target.email}."
+            request.session["flash"] = f"Invitación enviada a {target.email}."
         except Exception as exc:  # noqa: BLE001 — surface delivery failure to the admin
-            request.session["flash"] = f"User created but the invite email failed: {exc}"
+            request.session["flash"] = (
+                f"Usuario creado, pero no se pudo enviar la invitación: {exc}"
+            )
         return RedirectResponse("/users", status_code=303)
 
     # Fallback: no SMTP — generate a temporary password shown once to the admin.
@@ -80,7 +83,7 @@ def users_create(
     # Pass the one-time temp password via the (signed) session, never the URL — keeps it out
     # of server access logs and the Referer header.
     request.session["flash"] = (
-        f"Created {email}. Temporary password: {temp} — they must change it on first login."
+        f"Usuario creado: {email}. Contraseña temporal: {temp}. Debe cambiarla al iniciar sesión."
     )
     return RedirectResponse("/users", status_code=303)
 
@@ -101,7 +104,9 @@ def users_set_groups(
         db.commit()
     except ValueError:
         db.rollback()
-        request.session["flash"] = "Cannot remove the protected admin from the Admins group."
+        request.session["flash"] = (
+            "No se puede retirar al administrador protegido del grupo de administradores."
+        )
     return RedirectResponse("/users", status_code=303)
 
 

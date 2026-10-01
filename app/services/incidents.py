@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Incident, IntegrationState, StatusCategory, StatusLevel
+from app.road_fields import validate_road_data
 
 _UNSET = object()
 
@@ -36,6 +37,7 @@ def create_incident(
     component_ids: list[int] | None = None,
     status_id: int | None = None,
     incident_type_id: int | None = None,
+    road_data: dict | None = None,
 ) -> Incident:
     from app.models import IncidentType
     from app.services.catalog import default_severity_level_id
@@ -49,6 +51,7 @@ def create_incident(
         severity_level_id = (
             itype.default_severity_level_id if itype else None
         ) or default_severity_level_id(db)
+    road_data = validate_road_data(road_data or {})
     components = _scoped_components(db, system_id, component_ids)
     inc = Incident(
         title=title.strip(),
@@ -65,6 +68,7 @@ def create_incident(
             "announce": IntegrationState.SKIPPED,
         },
         incident_type_id=incident_type_id,
+        **road_data,
     )
     inc.components = components
     db.add(inc)
@@ -90,7 +94,9 @@ def update_incident(
     system_id=_UNSET,
     component_ids=_UNSET,
     incident_type_id=_UNSET,
+    road_data: dict | None = None,
 ):
+    road_data = validate_road_data(road_data or {})
     if title is not _UNSET:
         incident.title = title.strip()
     if description is not _UNSET:
@@ -106,6 +112,8 @@ def update_incident(
         incident.components = _scoped_components(db, incident.system_id, component_ids)
     if incident_type_id is not _UNSET:
         incident.incident_type_id = incident_type_id
+    for key, value in road_data.items():
+        setattr(incident, key, value)
     db.flush()
     return incident
 

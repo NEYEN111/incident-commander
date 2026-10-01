@@ -2,7 +2,9 @@ from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
+from app.i18n import APP_NAME, ui_es
 from app.models import effective_role
+from app.road_fields import ROAD_FIELDS, road_display, road_values
 from app.services.markdown import render_markdown
 
 
@@ -19,6 +21,10 @@ templates = Jinja2Templates(
 
 # Available in every template (e.g. base.html nav gating).
 templates.env.globals["effective_role"] = effective_role
+templates.env.globals.update(
+    app_name=APP_NAME, road_fields=ROAD_FIELDS, road_values=road_values, road_display=road_display
+)
+templates.env.filters["ui_es"] = ui_es
 
 # Jinja2 filter: {{ text | markdown }} → sanitized HTML string
 templates.env.filters["markdown"] = render_markdown
@@ -49,12 +55,12 @@ def _timeago(dt) -> str:
     d = dt if dt.tzinfo else dt.replace(tzinfo=UTC)
     secs = (now - d).total_seconds()
     if secs < 60:
-        return "just now"
+        return "ahora"
     if secs < 3600:
-        return f"{int(secs // 60)}m ago"
+        return f"hace {int(secs // 60)} min"
     if secs < 86400:
-        return f"{int(secs // 3600)}h ago"
-    return f"{int(secs // 86400)}d ago"
+        return f"hace {int(secs // 3600)} h"
+    return f"hace {int(secs // 86400)} días"
 
 
 templates.env.filters["timeago"] = _timeago

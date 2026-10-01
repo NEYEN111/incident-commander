@@ -1,145 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head"><h1>Settings</h1></div>
-<p class="page-sub">Integrations (Slack, Google, SMTP, SSO) and your catalogues — severities, statuses, types, roles, teams, custom fields.</p>
+<div class="page-head"><h1>Configuración</h1></div>
+<p class="page-sub">Administra el acceso, las prioridades operativas, los estados y los responsables.</p>
 
 <div class="card">
-  <h2>Application</h2>
-  <form method="post" action="/settings/app">
-    <label class="field-block">
-      <span>Slack channel name template</span>
-      <input name="slack_channel_name_template" value="{{ app.slack_channel_name_template }}">
-    </label>
-    <p class="muted" style="margin:0 0 12px; font-size:12.5px">Placeholders: <code>{date}</code>, <code>{slug}</code>. Used when an incident opens its Slack room.</p>
-    <button class="btn btn-primary" type="submit">Save</button>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Email (SMTP)</h2>
+  <h2>Correo electrónico (SMTP)</h2>
   <form method="post" action="/settings/smtp">
     <div class="form-row">
-      <label class="field-block grow"><span>Host</span><input name="host" value="{{ smtp.host or '' }}"></label>
-      <label class="field-block"><span>Port</span><input name="port" type="number" value="{{ smtp.port or '' }}"></label>
+      <label class="field-block grow"><span>Servidor</span><input name="host" value="{{ smtp.host or '' }}"></label>
+      <label class="field-block"><span>Puerto</span><input name="port" type="number" value="{{ smtp.port or '' }}"></label>
     </div>
     <div class="form-row">
-      <label class="field-block grow"><span>Username</span><input name="username" value="{{ smtp.username or '' }}"></label>
-      <label class="field-block grow"><span>Password</span><input name="password" type="password" placeholder="{{ 'leave blank to keep current' if smtp.password else '' }}"></label>
+      <label class="field-block grow"><span>Usuario</span><input name="username" value="{{ smtp.username or '' }}"></label>
+      <label class="field-block grow"><span>Contraseña</span><input name="password" type="password" placeholder="{{ 'deja en blanco para conservar el valor actual' if smtp.password else '' }}"></label>
     </div>
     <div class="form-row">
-      <label class="field-block grow"><span>From address</span><input name="from_address" value="{{ smtp.from_address or '' }}"></label>
+      <label class="field-block grow"><span>Correo del remitente</span><input name="from_address" value="{{ smtp.from_address or '' }}"></label>
       <label class="check"><input type="checkbox" name="use_tls" value="true" {{ 'checked' if smtp.use_tls else '' }}> STARTTLS</label>
     </div>
-    <button class="btn btn-primary" type="submit">Save SMTP</button>
+    <button class="btn btn-primary" type="submit">Guardar SMTP</button>
   </form>
   <form method="post" action="/settings/smtp/test" style="margin-top:10px">
-    <button class="btn" type="submit" {{ 'disabled' if not smtp_configured else '' }}>Send test email</button>
+    <button class="btn" type="submit" {{ 'disabled' if not smtp_configured else '' }}>Enviar correo de prueba</button>
   </form>
 </div>
 
 <div class="card">
-  <h2>Slack</h2>
-  <form method="post" action="/settings/slack">
-    <label class="field-block"><span>Client ID</span><input name="client_id" value="{{ slack.client_id or '' }}"></label>
-    <div class="form-row">
-      <label class="field-block grow"><span>Client secret</span><input name="client_secret" type="password" placeholder="{{ 'leave blank to keep current' if slack.client_secret else '' }}"></label>
-      <label class="field-block grow"><span>Signing secret</span><input name="signing_secret" type="password" placeholder="{{ 'leave blank to keep current' if slack.signing_secret else '' }}"></label>
-    </div>
-    <label class="check"><input type="checkbox" name="enabled" value="true" {{ 'checked' if slack.enabled else '' }}> Enabled</label>
-    <div style="margin-top:12px"><button class="btn btn-primary" type="submit">Save Slack</button></div>
-  </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">Redirect URL for your Slack app: <code>{{ base_url }}/connections/slack/callback</code>.</p>
-  {% if slack_connections %}
-  <table style="margin-top:12px">
-    <thead><tr><th>Workspace</th><th>Team ID</th></tr></thead>
-    <tbody>{% for c in slack_connections %}<tr><td>{{ c.team_name or "—" }}</td><td class="muted">{{ c.team_id }}</td></tr>{% endfor %}</tbody>
-  </table>
-  {% else %}<p class="muted" style="margin-top:12px">No Slack workspaces connected yet.</p>{% endif %}
-  {% if slack_can_connect %}
-  <div style="margin-top:12px"><a class="btn btn-primary" href="/connections/slack/install">Add to Slack</a></div>
-  {% else %}<p class="muted" style="margin-top:8px">Save &amp; enable Slack credentials above to connect a workspace.</p>{% endif %}
-</div>
-
-<div class="card">
-  <h2>Google</h2>
-  <form method="post" action="/settings/google">
-    <label class="field-block"><span>Service account JSON key</span>
-      <textarea name="service_account_json" rows="6" placeholder="{{ 'configured — leave blank to keep current' if google.service_account_json else 'paste the service account JSON key' }}"></textarea>
-    </label>
-    <label class="field-block"><span>Impersonate user (Gemini-licensed)</span>
-      <input name="impersonate_email" value="{{ google.impersonate_email or '' }}" placeholder="incidents@yourdomain.com"></label>
-    <label class="check"><input type="checkbox" name="enabled" value="true" {{ 'checked' if google.enabled else '' }}> Enabled</label>
-    <div style="margin-top:12px"><button class="btn btn-primary" type="submit">Save Google</button></div>
-  </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">
-    Create a <strong>service account</strong> in Google Cloud, enable <strong>Domain-Wide Delegation</strong>, and in the Workspace Admin Console authorize its client-id for
-    <code>meetings.space.created</code> and <code>drive.readonly</code>. The impersonation user must hold a <strong>Gemini for Workspace</strong> license. Incident Meets are created via the Meet API with Gemini smart notes + transcription on by default.
-  </p>
-</div>
-
-<div class="card">
-  <h2>Single sign-on (OIDC)</h2>
+  <h2>Inicio de sesión único (OIDC)</h2>
   <form method="post" action="/settings/sso">
-    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Enable SSO</label><br>
-    <label class="check"><input type="checkbox" name="allow_local_login" value="true" {{ 'checked' if sso.allow_local_login else '' }}> Allow local password login (the admin can always sign in locally)</label>
-    <label class="field-block" style="margin-top:10px"><span>Issuer URL</span><input name="issuer" value="{{ sso.issuer or '' }}" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0 or https://accounts.google.com"></label>
+    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Activar SSO</label><br>
+    <label class="check"><input type="checkbox" name="allow_local_login" value="true" {{ 'checked' if sso.allow_local_login else '' }}> Permitir acceso con contraseña (el administrador siempre puede acceder)</label>
+    <label class="field-block" style="margin-top:10px"><span>URL del proveedor</span><input name="issuer" value="{{ sso.issuer or '' }}" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0 o https://accounts.google.com"></label>
     <div class="form-row">
-      <label class="field-block grow"><span>Client ID</span><input name="client_id" value="{{ sso.client_id or '' }}"></label>
-      <label class="field-block grow"><span>Client secret</span><input name="client_secret" type="password" placeholder="{{ 'leave blank to keep current' if sso.client_secret else '' }}"></label>
+      <label class="field-block grow"><span>ID del cliente</span><input name="client_id" value="{{ sso.client_id or '' }}"></label>
+      <label class="field-block grow"><span>Secreto del cliente</span><input name="client_secret" type="password" placeholder="{{ 'deja en blanco para conservar el valor actual' if sso.client_secret else '' }}"></label>
     </div>
     <div class="form-row">
-      <label class="field-block grow"><span>Button label</span><input name="display_name" value="{{ sso.display_name or '' }}" placeholder="Microsoft"></label>
-      <label class="field-block grow"><span>Allowed domains (comma-separated)</span><input name="allowed_domains" value="{{ sso.allowed_domains or '' }}"></label>
+      <label class="field-block grow"><span>Texto del botón</span><input name="display_name" value="{{ sso.display_name or '' }}" placeholder="Microsoft"></label>
+      <label class="field-block grow"><span>Dominios permitidos (separados por comas)</span><input name="allowed_domains" value="{{ sso.allowed_domains or '' }}"></label>
     </div>
-    <button class="btn btn-primary" type="submit">Save SSO</button>
+    <button class="btn btn-primary" type="submit">Guardar SSO</button>
   </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">Redirect URI to register at your IdP: <code>{{ base_url }}/auth/oidc/callback</code>. Empty "allowed domains" = trust any user from this issuer.</p>
+  <p class="muted" style="margin:10px 0 0; font-size:12.5px">URI de redirección para registrar en el proveedor: <code>{{ base_url }}/auth/oidc/callback</code>. Si los dominios permitidos están vacíos, se acepta cualquier usuario de este proveedor.</p>
 </div>
 
 <div class="card">
-  <h2>Outgoing webhooks</h2>
-  {% if webhooks %}
-  <table>
-    <thead><tr><th>Name</th><th>Format</th><th>URL</th><th>On</th><th></th></tr></thead>
-    <tbody>
-      {% for w in webhooks %}
-      <tr>
-        <td>{{ w.name }}</td>
-        <td class="muted">{{ w.format.value }}</td>
-        <td class="muted">{{ w.url[:28] }}{{ '…' if w.url|length > 28 else '' }}</td>
-        <td>{% if w.enabled %}<span class="badge-yes">yes</span>{% else %}<span class="badge-no">no</span>{% endif %}</td>
-        <td><form method="post" action="/settings/webhooks/{{ w.id }}/delete" style="display:inline">
-          <button class="btn btn-sm" type="submit" onclick='return confirm("Delete " + {{ w.name|tojson }} + "?")'>Delete</button>
-        </form></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}<p class="muted" style="margin-bottom:16px">No webhooks yet.</p>{% endif %}
-  <h3 style="margin:16px 0 10px">Add webhook</h3>
-  <form method="post" action="/settings/webhooks">
-    <div class="form-row">
-      <label class="field-block grow"><span>Name</span><input name="name" required maxlength="120"></label>
-      <label class="field-block"><span>Format</span>
-        <select name="format"><option value="generic">Generic JSON</option><option value="slack">Slack</option><option value="teams">Microsoft Teams</option><option value="discord">Discord</option></select>
-      </label>
-    </div>
-    <label class="field-block"><span>Webhook URL</span><input name="url" required></label>
-    <button class="btn btn-primary" type="submit">Add webhook</button>
-  </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">Fired on incident opened / updated / closed. Slack/Discord/Teams use their incoming-webhook format; Generic posts a JSON event.</p>
-</div>
-
-<div class="card">
-  <h2>Severity levels</h2>
+  <h2>Prioridades operativas</h2>
   {% if severity_levels %}
   <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
     <thead>
       <tr>
-        <th style="text-align:left; padding:6px 8px">Label</th>
-        <th style="text-align:left; padding:6px 8px">Colour</th>
-        <th style="text-align:left; padding:6px 8px">Rank</th>
-        <th style="text-align:left; padding:6px 8px">Default</th>
+        <th style="text-align:left; padding:6px 8px">Nombre</th>
+        <th style="text-align:left; padding:6px 8px">Color</th>
+        <th style="text-align:left; padding:6px 8px">Orden</th>
+        <th style="text-align:left; padding:6px 8px">Predeterminado</th>
         <th style="text-align:left; padding:6px 8px"></th>
       </tr>
     </thead>
@@ -153,12 +67,12 @@
         </td>
         <td style="padding:6px 8px">{{ lvl.rank }}</td>
         <td style="padding:6px 8px">
-          {% if lvl.is_default %}<span class="badge-yes">default</span>
-          {% else %}<form method="post" action="/settings/severity/{{ lvl.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Make default</button></form>{% endif %}
+          {% if lvl.is_default %}<span class="badge-yes">predeterminado</span>
+          {% else %}<form method="post" action="/settings/severity/{{ lvl.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
         </td>
         <td style="padding:6px 8px">
           <form method="post" action="/settings/severity/{{ lvl.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("Delete " + {{ lvl.label|tojson }} + "?")'>Delete</button>
+            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ lvl.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
@@ -166,47 +80,47 @@
     </tbody>
   </table>
   {% else %}
-  <p class="muted" style="margin-bottom:16px">No severity levels defined yet.</p>
+  <p class="muted" style="margin-bottom:16px">Todavía no hay prioridades definidas.</p>
   {% endif %}
 
-  <h3 style="margin-bottom:10px">Add severity level</h3>
+  <h3 style="margin-bottom:10px">Añadir prioridad operativa</h3>
   <form method="post" action="/settings/severity">
     <div class="form-row">
-      <label class="field-block grow"><span>Label</span><input name="label" required maxlength="40"></label>
-      <label class="field-block"><span>Colour</span><input type="color" name="color" value="#808080" required></label>
-      <label class="field-block"><span>Rank</span><input type="number" name="rank" value="100" min="1"></label>
+      <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="40"></label>
+      <label class="field-block"><span>Color</span><input type="color" name="color" value="#808080" required></label>
+      <label class="field-block"><span>Orden</span><input type="number" name="rank" value="100" min="1"></label>
     </div>
-    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Set as default</label>
-    <div><button class="btn btn-primary" type="submit">Add level</button></div>
+    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
+    <div><button class="btn btn-primary" type="submit">Añadir prioridad</button></div>
   </form>
 </div>
 
 <div class="card">
-  <h2>Incident statuses</h2>
+  <h2>Estados del registro</h2>
   {% if status_levels %}
   <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
     <thead>
       <tr>
-        <th style="text-align:left; padding:6px 8px">Label</th>
-        <th style="text-align:left; padding:6px 8px">Category</th>
-        <th style="text-align:left; padding:6px 8px">Rank</th>
-        <th style="text-align:left; padding:6px 8px">Default</th>
+        <th style="text-align:left; padding:6px 8px">Nombre</th>
+        <th style="text-align:left; padding:6px 8px">Categoría</th>
+        <th style="text-align:left; padding:6px 8px">Orden</th>
+        <th style="text-align:left; padding:6px 8px">Predeterminado</th>
         <th style="text-align:left; padding:6px 8px"></th>
       </tr>
     </thead>
     <tbody>
       {% for s in status_levels %}
       <tr>
-        <td style="padding:6px 8px">{{ s.label }}</td>
-        <td style="padding:6px 8px">{{ s.category.value }}</td>
+        <td style="padding:6px 8px">{{ s.label | ui_es }}</td>
+        <td style="padding:6px 8px">{{ s.category.value | ui_es }}</td>
         <td style="padding:6px 8px">{{ s.rank }}</td>
         <td style="padding:6px 8px">
-          {% if s.is_default %}<span class="badge-yes">default</span>
-          {% else %}<form method="post" action="/settings/statuses/{{ s.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Make default</button></form>{% endif %}
+          {% if s.is_default %}<span class="badge-yes">predeterminado</span>
+          {% else %}<form method="post" action="/settings/statuses/{{ s.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
         </td>
         <td style="padding:6px 8px">
           <form method="post" action="/settings/statuses/{{ s.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("Delete " + {{ s.label|tojson }} + "?")'>Delete</button>
+            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ s.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
@@ -214,220 +128,44 @@
     </tbody>
   </table>
   {% else %}
-  <p class="muted">No statuses defined yet.</p>
+  <p class="muted">Todavía no hay estados definidos.</p>
   {% endif %}
 
-  <h3 style="margin-bottom:10px">Add status</h3>
+  <h3 style="margin-bottom:10px">Añadir estado</h3>
   <form method="post" action="/settings/statuses">
     <div class="form-row">
-      <label class="field-block grow"><span>Label</span><input name="label" required maxlength="40"></label>
-      <label class="field-block"><span>Category</span>
+      <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="40"></label>
+      <label class="field-block"><span>Categoría</span>
         <select name="category">
-          <option value="triage">Triage</option>
-          <option value="active">Active</option>
-          <option value="closed">Closed</option>
+          <option value="triage">Pendiente</option>
+          <option value="active">En atención</option>
+          <option value="closed">Cerrado</option>
         </select>
       </label>
-      <label class="field-block"><span>Rank</span><input type="number" name="rank" value="100" min="1"></label>
+      <label class="field-block"><span>Orden</span><input type="number" name="rank" value="100" min="1"></label>
     </div>
-    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Set as default</label>
-    <div><button class="btn btn-primary" type="submit">Add status</button></div>
+    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
+    <div><button class="btn btn-primary" type="submit">Añadir estado</button></div>
   </form>
 </div>
 
 <div class="card">
-  <h2>Incident types</h2>
-  {% if incident_types %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:6px 8px">Label</th>
-        <th style="text-align:left; padding:6px 8px">Default severity</th>
-        <th style="text-align:left; padding:6px 8px">Rank</th>
-        <th style="text-align:left; padding:6px 8px">Default</th>
-        <th style="text-align:left; padding:6px 8px"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for t in incident_types %}
-      <tr>
-        <td style="padding:6px 8px">{{ t.label }}</td>
-        <td style="padding:6px 8px">{{ t.default_severity.label if t.default_severity else '—' }}</td>
-        <td style="padding:6px 8px">{{ t.rank }}</td>
-        <td style="padding:6px 8px">
-          {% if t.is_default %}<span class="badge-yes">default</span>
-          {% else %}<form method="post" action="/settings/incident-types/{{ t.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Make default</button></form>{% endif %}
-        </td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/incident-types/{{ t.id }}/delete" style="display:inline">
-            <button class="btn btn-sm" type="submit" onclick='return confirm("Delete " + {{ t.label|tojson }} + "?")'>Delete</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No incident types defined yet.</p>
-  {% endif %}
-
-  <h3 style="margin-bottom:10px">Add type</h3>
-  <form method="post" action="/settings/incident-types">
-    <div class="form-row">
-      <label class="field-block grow"><span>Label</span><input name="label" required maxlength="60"></label>
-      <label class="field-block grow"><span>Description</span><input name="description"></label>
-    </div>
-    <div class="form-row">
-      <label class="field-block"><span>Default severity</span>
-        <select name="default_severity_level_id">
-          <option value="">—</option>
-          {% for lvl in severity_levels %}<option value="{{ lvl.id }}">{{ lvl.label }}</option>{% endfor %}
-        </select>
-      </label>
-      <label class="field-block"><span>Rank</span><input type="number" name="rank" value="100" min="1"></label>
-    </div>
-    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Set as default</label>
-    <div><button class="btn btn-primary" type="submit">Add type</button></div>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Custom fields</h2>
-  {% if custom_field_defs %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:6px 8px">Label</th>
-        <th style="text-align:left; padding:6px 8px">Type</th>
-        <th style="text-align:left; padding:6px 8px">Applies to</th>
-        <th style="text-align:left; padding:6px 8px">Required</th>
-        <th style="text-align:left; padding:6px 8px"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for fd in custom_field_defs %}
-      <tr>
-        <td style="padding:6px 8px">{{ fd.label }}</td>
-        <td style="padding:6px 8px">{{ fd.field_type }}</td>
-        <td style="padding:6px 8px">{{ fd.incident_types | map(attribute='label') | join(', ') or 'All types' }}</td>
-        <td style="padding:6px 8px">
-          {% if fd.required %}<span class="badge-yes">required</span>{% else %}<span class="badge-no">no</span>{% endif %}
-        </td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/custom-fields/{{ fd.id }}/delete" style="display:inline">
-            <button class="btn btn-sm" type="submit" onclick='return confirm("Delete " + {{ fd.label|tojson }} + "?")'>Delete</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No custom fields defined yet.</p>
-  {% endif %}
-
-  <h3 style="margin-bottom:10px">Add field</h3>
-  <form method="post" action="/settings/custom-fields">
-    <div class="form-row">
-      <label class="field-block grow"><span>Label</span><input name="label" required maxlength="80"></label>
-      <label class="field-block"><span>Type</span>
-        <select name="field_type">
-          {% for ft in field_types %}<option value="{{ ft }}">{{ ft }}</option>{% endfor %}
-        </select>
-      </label>
-    </div>
-    <label class="field-block"><span>Options</span>
-      <textarea name="options" placeholder="one option per line — for select / multi_select"></textarea>
-    </label>
-    <div class="form-row">
-      <label class="check"><input type="checkbox" name="required" value="true"> Required</label>
-      <label class="field-block"><span>Rank</span><input type="number" name="rank" value="100" min="1"></label>
-    </div>
-    <label class="field-block"><span>Applies to (empty = all types)</span>
-      <select name="incident_type_ids" multiple>
-        {% for t in incident_types %}<option value="{{ t.id }}">{{ t.label }}</option>{% endfor %}
-      </select>
-    </label>
-    <div><button class="btn btn-primary" type="submit">Add field</button></div>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Teams</h2>
-  {% if teams %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:6px 8px">Name</th>
-        <th style="text-align:left; padding:6px 8px">Description</th>
-        <th style="text-align:left; padding:6px 8px"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for tm in teams %}
-      <tr>
-        <td style="padding:6px 8px">{{ tm.name }}</td>
-        <td style="padding:6px 8px">{{ tm.description or '—' }}</td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/teams/{{ tm.id }}/delete" style="display:inline">
-            <button class="btn btn-sm" type="submit" onclick='return confirm("Delete " + {{ tm.name|tojson }} + "?")'>Delete</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No teams defined yet.</p>
-  {% endif %}
-
-  <h3 style="margin-bottom:10px">Add team</h3>
-  <form method="post" action="/settings/teams">
-    <div class="form-row">
-      <label class="field-block grow"><span>Name</span><input name="name" required maxlength="80"></label>
-      <label class="field-block grow"><span>Description</span><input name="description"></label>
-    </div>
-    <div><button class="btn btn-primary" type="submit">Add team</button></div>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Inbound integrations</h2>
-  <form method="post" action="/settings/integrations" class="form-row" style="margin-bottom:12px">
-    <input class="grow" name="name" placeholder="Name (e.g. prod CloudWatch)" required>
-    <select name="kind"><option value="sns">AWS SNS (CloudWatch)</option><option value="alertmanager">Prometheus Alertmanager</option><option value="generic">Generic JSON</option></select>
-    <button class="btn btn-sm" type="submit">Add</button>
-  </form>
-  {% for integ in integrations %}
-  <div class="form-row" style="border-top:1px solid var(--line-soft); padding-top:10px">
-    <span class="grow"><strong>{{ integ.name }}</strong> <span class="role">{{ integ.kind }}</span><br>
-      <code class="muted" style="font-size:11.5px">{{ base_url }}/ingest/{{ integ.token }}</code></span>
-    <form method="post" action="/settings/integrations/{{ integ.id }}/delete" onsubmit="return confirm('Delete this integration?')">
-      <button class="chip" type="submit">delete</button>
-    </form>
-  </div>
-  {% else %}
-  <span class="muted">No inbound integrations yet.</span>
-  {% endfor %}
-</div>
-
-<div class="card">
-  <h2>Incident roles</h2>
+  <h2>Roles de responsables</h2>
   {% if incident_role_types %}
   <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
     <thead><tr>
-      <th style="text-align:left; padding:6px 8px">Label</th>
-      <th style="text-align:left; padding:6px 8px">Rank</th>
+      <th style="text-align:left; padding:6px 8px">Nombre</th>
+      <th style="text-align:left; padding:6px 8px">Orden</th>
       <th style="text-align:left; padding:6px 8px"></th>
     </tr></thead>
     <tbody>
       {% for rt in incident_role_types %}
       <tr>
-        <td style="padding:6px 8px">{{ rt.label }}</td>
+        <td style="padding:6px 8px">{{ rt.label | ui_es }}</td>
         <td style="padding:6px 8px">{{ rt.rank }}</td>
         <td style="padding:6px 8px">
           <form method="post" action="/settings/roles/{{ rt.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("Delete " + {{ rt.label|tojson }} + "?")'>Delete</button>
+            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ rt.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
@@ -435,15 +173,15 @@
     </tbody>
   </table>
   {% else %}
-  <p class="muted" style="margin-bottom:16px">No roles defined yet.</p>
+  <p class="muted" style="margin-bottom:16px">Todavía no hay roles definidos.</p>
   {% endif %}
-  <h3 style="margin-bottom:10px">Add role</h3>
+  <h3 style="margin-bottom:10px">Añadir rol</h3>
   <form method="post" action="/settings/roles">
     <div class="form-row">
-      <label class="field-block grow"><span>Label</span><input name="label" required maxlength="60"></label>
-      <label class="field-block"><span>Rank</span><input type="number" name="rank" value="100" min="1"></label>
+      <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="60"></label>
+      <label class="field-block"><span>Orden</span><input type="number" name="rank" value="100" min="1"></label>
     </div>
-    <div><button class="btn btn-primary" type="submit">Add role</button></div>
+    <div><button class="btn btn-primary" type="submit">Añadir rol</button></div>
   </form>
 </div>
 {% endblock %}

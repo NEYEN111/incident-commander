@@ -47,7 +47,7 @@ def test_detail_renders_tab_scaffold(client, db_session):
     assert (
         'id="tab-overview"' in body and 'id="tab-timeline"' in body and 'id="tab-followups"' in body
     )
-    assert ">Overview<" in body and ">Timeline<" in body and "Follow-ups" in body
+    assert ">Resumen<" in body and ">Cronología<" in body and "Seguimiento" in body
     # Roles is always its own tab (panel + label), not buried in Overview
     assert 'id="tab-roles"' in body and 'id="panel-roles"' in body and ">Roles<" in body
     # content relocated into the page (timeline add-note form + respond box still present)
@@ -57,7 +57,7 @@ def test_detail_renders_tab_scaffold(client, db_session):
     assert 'id="tab-alerts"' not in body
 
 
-def test_alerts_tab_appears_with_related_alert(client, db_session):
+def test_technical_alert_tab_hidden_even_with_related_alert(client, db_session):
     _login_ic(client, db_session)
     inc = _incident(db_session)
     integ = InboundIntegration(name="i", kind="generic", token="tk")
@@ -75,4 +75,4 @@ def test_alerts_tab_appears_with_related_alert(client, db_session):
     )
     db_session.commit()
     body = client.get(f"/incidents/{inc.id}").text
-    assert 'id="tab-alerts"' in body and ">Alerts<" in body
+    assert 'id="tab-alerts"' not in body and ">Alerts<" not in body

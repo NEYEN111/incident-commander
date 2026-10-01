@@ -14,13 +14,16 @@ def client(db_session, get_db_override):
     return TestClient(app)
 
 
-def test_readonly_sees_catalog_not_admin_links(client, db_session):
+def test_readonly_sees_road_navigation_not_technical_or_admin_links(client, db_session):
     bootstrap_admin(db_session, "admin@localhost")
     create_user(db_session, email="ro@x.io", name="RO", role=Role.read_only, password="pw-123456")
     db_session.flush()
     client.post("/login", data={"email": "ro@x.io", "password": "pw-123456"})
     html = client.get("/").text
-    assert 'href="/systems"' in html and 'href="/components"' in html
+    for path in ("/systems", "/components", "/maps", "/alerts", "/automations", "/postmortems"):
+        assert f'href="{path}"' not in html
+    assert 'href="/insights"' in html and "Estadísticas" in html
+    assert 'lang="es"' in html and "Sistema de Gestión de Accidentes Viales" in html
     assert 'href="/users"' not in html and 'href="/connections"' not in html
     assert 'href="/account/password"' in html  # personal settings entry
 

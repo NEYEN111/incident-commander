@@ -1,4 +1,4 @@
-You've been invited to Incident Commander.
+You've been invited to {{ app_name }}.
 
 Set your password and activate your account:
 {{ accept_url }}

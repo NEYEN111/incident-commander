@@ -36,5 +36,6 @@ def test_insights_page_require_user(client, db_session):
     db_session.commit()
     r = client.get("/insights")
     assert r.status_code == 200
-    assert "Insights" in r.text and "By severity" in r.text and "SEV1" in r.text
+    assert "Estadísticas" in r.text and "Por prioridad operativa" in r.text and "SEV1" in r.text
+    assert "By system" not in r.text and "By team" not in r.text and "MTTR" not in r.text
     assert client.get("/insights?days=0").status_code == 200  # all-time window

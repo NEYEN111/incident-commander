@@ -17,6 +17,7 @@ from app.models import (
     System,
     User,
 )
+from app.road_fields import road_form
 from app.services import automation, webhooks
 from app.services import postmortems as pm_svc
 from app.services.catalog import default_severity_level_id
@@ -91,6 +92,7 @@ async def create(
     video: str = Form(""),
     status_id: int | None = Form(None),
     incident_type_id: int | None = Form(None),
+    road_data: dict = Depends(road_form),
     user: User = Depends(require_role(Role.incident_commander)),
     db: Session = Depends(get_db),
 ):
@@ -107,6 +109,7 @@ async def create(
             slack_connection_id=slack_connection_id,
             status_id=status_id,
             incident_type_id=incident_type_id,
+            road_data=road_data,
         )
     except ValueError as exc:
         db.rollback()
@@ -269,7 +272,7 @@ def detail(
 
 
 @router.post("/incidents/{incident_id}/edit")
-def edit(
+async def edit(
     request: Request,
     incident_id: int,
     title: str = Form(...),
@@ -278,12 +281,25 @@ def edit(
     system_id: int | None = Form(None),
     component_ids: list[int] = Form(default=[]),
     incident_type_id: int | None = Form(None),
+    road_data: dict = Depends(road_form),
     user: User = Depends(require_role(Role.incident_commander)),
     db: Session = Depends(get_db),
 ):
     inc = db.scalar(select(Incident).where(Incident.id == incident_id))
     if inc is None:
         return HTMLResponse("Not found", status_code=404)
+    submitted = await request.form()
+    legacy_fields = {
+        key: value
+        for key, value in {
+            "system_id": system_id,
+            "component_ids": component_ids,
+            "incident_type_id": incident_type_id,
+        }.items()
+        if key in submitted
+    }
+    if "system_id" in submitted:
+        legacy_fields["component_ids"] = component_ids
     try:
         update_incident(
             db,
@@ -291,9 +307,8 @@ def edit(
             title=title,
             description=description,
             severity_level_id=severity_level_id,
-            system_id=system_id,
-            component_ids=component_ids,
-            incident_type_id=incident_type_id,
+            **legacy_fields,
+            road_data=road_data,
         )
     except ValueError as exc:
         db.rollback()

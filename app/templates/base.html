@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>{% block title %}Incident Commander{% endblock %}</title>
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <script src="/static/htmx.min.js" defer></script>
   <link rel="preload" href="/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/app.css?v=9">
+  <link rel="stylesheet" href="/static/app.css?v=10">
 </head>
 <body>
   {# Flash messages are set via request.session["flash"] and popped here, so every full
@@ -19,39 +19,33 @@
   {% set _is_admin = _role and _role.value == "admin" %}
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="/"><span class="pulse" aria-hidden="true"></span>Incident&nbsp;Commander</a>
+      <a class="brand" href="/"><span class="pulse" aria-hidden="true"></span><span>{{ app_name }}</span></a>
       {% set _p = request.url.path %}
       <nav class="nav">
-        <a href="/" class="{{ 'active' if _p == '/' or _p.startswith('/incidents') else '' }}">Incidents</a>
-        <a href="/systems" class="{{ 'active' if _p.startswith('/systems') else '' }}">Systems</a>
-        <a href="/components" class="{{ 'active' if _p.startswith('/components') else '' }}">Components</a>
-        <a href="/maps" class="{{ 'active' if _p.startswith('/maps') else '' }}">Maps</a>
-        <a href="/follow-ups" class="{{ 'active' if _p.startswith('/follow-ups') else '' }}">Follow-ups</a>
-        <a href="/postmortems" class="{{ 'active' if _p.startswith('/postmortems') else '' }}">Postmortems</a>
-        <a href="/alerts" class="{{ 'active' if _p.startswith('/alerts') else '' }}">Alerts</a>
-        <a href="/insights" class="{{ 'active' if _p.startswith('/insights') else '' }}">Insights</a>
+        <a href="/" class="{{ 'active' if _p == '/' or _p.startswith('/incidents') else '' }}">Accidentes</a>
+        <a href="/follow-ups" class="{{ 'active' if _p.startswith('/follow-ups') else '' }}">Seguimiento</a>
+        <a href="/insights" class="{{ 'active' if _p.startswith('/insights') else '' }}">Estadísticas</a>
       </nav>
       {% if _is_admin %}
       <nav class="nav nav-admin">
-        <a href="/users" class="{{ 'active' if _p.startswith('/users') else '' }}">Users</a>
-        <a href="/groups" class="{{ 'active' if _p.startswith('/groups') else '' }}">Groups</a>
-        <a href="/automations" class="{{ 'active' if _p.startswith('/automations') else '' }}">Automations</a>
+        <a href="/users" class="{{ 'active' if _p.startswith('/users') else '' }}">Usuarios</a>
+        <a href="/groups" class="{{ 'active' if _p.startswith('/groups') else '' }}">Grupos</a>
       </nav>
       {% endif %}
       <div class="sidebar-foot">
         <div class="who">{{ current_user.email }}</div>
-        <a href="{{ '/settings' if _is_admin else '/account/password' }}">{{ 'Settings' if _is_admin else 'Account' }}</a>
-        <a href="/logout">Sign out</a>
+        <a href="{{ '/settings' if _is_admin else '/account/password' }}">{{ 'Configuración' if _is_admin else 'Mi cuenta' }}</a>
+        <a href="/logout">Cerrar sesión</a>
       </div>
     </aside>
     <main class="main">
-      {% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+      {% if notice %}<div class="notice">{{ notice | ui_es }}</div>{% endif %}
       {% block content %}{% endblock %}
     </main>
   </div>
   {% else %}
   <main class="main main-plain">
-    {% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+    {% if notice %}<div class="notice">{{ notice | ui_es }}</div>{% endif %}
     {% block content_plain %}{{ self.content() }}{% endblock %}
   </main>
   {% endif %}

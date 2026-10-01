@@ -1,0 +1,22 @@
+<section class="road-fields">
+  <h2 class="section-title">Datos del accidente</h2>
+  <p class="muted">Deja en blanco los datos que todavía no conoces. El límite de velocidad se registra en millas por hora (mph).</p>
+  <div class="road-grid">
+  {% for name, spec in road_fields.items() %}
+    {% set value = road_data.get(name) %}
+    <label class="field-block" for="{{ field_prefix }}-{{ name }}">
+      <span>{{ spec.label }}</span>
+      {% if spec.type == "select" %}
+      <select id="{{ field_prefix }}-{{ name }}" name="{{ name }}">
+        <option value="">Sin datos</option>
+        {% for code, label in spec.options.items() %}<option value="{{ code }}"{% if value == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <input id="{{ field_prefix }}-{{ name }}" name="{{ name }}" type="{{ spec.type }}"
+             value="{{ value.strftime('%H:%M') if name == 'time' and value else (value if value is not none else '') }}"
+             {% if spec.type == "number" %}step="{{ '1' if name == 'speed_limit' else 'any' }}" min="{{ spec.min }}" max="{{ spec.max }}"{% endif %}>
+      {% endif %}
+    </label>
+  {% endfor %}
+  </div>
+</section>

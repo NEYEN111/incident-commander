@@ -21,6 +21,12 @@ from app.road_fields import road_form
 from app.services import automation, webhooks
 from app.services import postmortems as pm_svc
 from app.services.catalog import default_severity_level_id
+from app.services.incident_predictions import (
+    PredictionDataError,
+    PredictionUnavailableError,
+    create_prediction,
+    recent_predictions,
+)
 from app.services.incident_types import default_incident_type_id, list_incident_types
 from app.services.incidents import (
     close_incident,
@@ -247,6 +253,7 @@ def detail(
 
     custom_fields = fields_for_type(db, inc.incident_type_id)
     custom_values = values_for_incident(inc)
+    predictions = recent_predictions(db, inc.id)
     return templates.TemplateResponse(
         request,
         "incident_detail.html",
@@ -267,8 +274,29 @@ def detail(
             "incident_types": incident_types,
             "custom_fields": custom_fields,
             "custom_values": custom_values,
+            "latest_prediction": predictions[0] if predictions else None,
+            "previous_predictions": predictions[1:],
         },
     )
+
+
+@router.post("/incidents/{incident_id}/predict")
+def predict_incident(
+    request: Request,
+    incident_id: int,
+    user: User = Depends(require_role(Role.incident_commander)),
+    db: Session = Depends(get_db),
+):
+    incident = db.get(Incident, incident_id)
+    if incident is None:
+        return HTMLResponse("Accidente no encontrado", status_code=404)
+    try:
+        create_prediction(db, incident, created_by=user.id)
+    except (PredictionDataError, PredictionUnavailableError) as exc:
+        request.session["flash"] = str(exc)
+    else:
+        request.session["flash"] = "Predicción ML guardada."
+    return RedirectResponse(f"/incidents/{incident_id}", status_code=303)
 
 
 @router.post("/incidents/{incident_id}/edit")

@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -377,6 +378,31 @@ class Incident(Base):
     @property
     def is_closed(self) -> bool:
         return self.status is not None and self.status.category == StatusCategory.closed
+
+
+class IncidentPrediction(Base):
+    __tablename__ = "incident_predictions"
+    __table_args__ = (
+        CheckConstraint(
+            "predicted_severity IN ('Fatal', 'Grave', 'Leve')",
+            name="ck_incident_predictions_severity",
+        ),
+        CheckConstraint(
+            "prob_fatal BETWEEN 0 AND 1 AND prob_grave BETWEEN 0 AND 1 AND prob_leve BETWEEN 0 AND 1",
+            name="ck_incident_predictions_probabilities",
+        ),
+        Index("ix_incident_predictions_history", "incident_id", "created_at", "id"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    predicted_severity: Mapped[str] = mapped_column(String(16))
+    prob_fatal: Mapped[float] = mapped_column(Float)
+    prob_grave: Mapped[float] = mapped_column(Float)
+    prob_leve: Mapped[float] = mapped_column(Float)
+    model_version: Mapped[str] = mapped_column(String(64))
+    input_data: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class IncidentEvent(Base):

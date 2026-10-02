@@ -1,0 +1,36 @@
+<section class="section" id="ml-prediction">
+  <h2 class="section-title">Predicción de gravedad por ML</h2>
+  {% if latest_prediction %}
+  <p><strong>Gravedad estimada: {{ latest_prediction.predicted_severity }}</strong></p>
+  <p class="muted">Probabilidades estimadas</p>
+  <dl class="kv">
+    <dt>Fatal</dt><dd>{{ '%.1f' | format(latest_prediction.prob_fatal * 100) }}%</dd>
+    <dt>Grave</dt><dd>{{ '%.1f' | format(latest_prediction.prob_grave * 100) }}%</dd>
+    <dt>Leve</dt><dd>{{ '%.1f' | format(latest_prediction.prob_leve * 100) }}%</dd>
+    <dt>Versión del modelo</dt><dd>{{ latest_prediction.model_version }}</dd>
+    <dt>Fecha de predicción</dt><dd>{{ latest_prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }}</dd>
+  </dl>
+  {% else %}
+  <p class="muted">Todavía no hay predicciones para este accidente.</p>
+  {% endif %}
+  {% if _can_manage %}
+  <form method="post" action="/incidents/{{ i.id }}/predict">
+    <button class="btn btn-sm" type="submit">{{ 'Volver a calcular' if latest_prediction else 'Calcular predicción' }}</button>
+  </form>
+  {% endif %}
+  <p class="muted">La predicción es una estimación del modelo y no reemplaza la gravedad registrada del accidente.</p>
+  {% if previous_predictions %}
+  <h3 class="section-title">Predicciones anteriores (últimas 5)</h3>
+  <ul>
+    {% for prediction in previous_predictions %}
+    <li data-prediction-id="{{ prediction.id }}">
+      {{ prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }} ·
+      {{ prediction.predicted_severity }} · Modelo {{ prediction.model_version }} ·
+      Probabilidades estimadas: Fatal {{ '%.1f' | format(prediction.prob_fatal * 100) }}%,
+      Grave {{ '%.1f' | format(prediction.prob_grave * 100) }}%,
+      Leve {{ '%.1f' | format(prediction.prob_leve * 100) }}%
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>

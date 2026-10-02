@@ -1,0 +1,17 @@
+.road-analytics .page-head { flex-wrap: wrap; gap: 12px; }
+.analytics-kpis { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.analytics-chart { margin: 0; min-width: 0; }
+.analytics-chart h2 { font-size: 18px; }
+.analytics-bars { list-style: none; padding: 0; margin: 0; }
+.analytics-bars li { display: grid; grid-template-columns: minmax(100px, 1.3fr) minmax(40px, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 10px; }
+.analytics-label { overflow-wrap: anywhere; }
+.analytics-count { text-align: right; font-size: 13px; }
+.analytics-count .muted { font-size: 11px; }
+.analytics-bars .bar { width: 100%; box-sizing: border-box; }
+.analytics-scroll { max-height: 340px; overflow-y: auto; padding-right: 6px; }
+@media (max-width: 850px) { .analytics-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) {
+  .analytics-bars li { grid-template-columns: minmax(90px, 1.2fr) minmax(30px, 1fr) auto; gap: 6px; }
+  .analytics-count .muted { display: block; }
+}

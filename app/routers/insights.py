@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
@@ -14,10 +14,12 @@ router = APIRouter()
 @router.get("/insights", response_class=HTMLResponse)
 def insights_page(
     request: Request,
-    days: int = 30,
+    days: int = Query(default=30, ge=0),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
+    if days not in (0, 30, 90):
+        raise HTTPException(status_code=422, detail="Selecciona 30 días, 90 días o Todo")
     data = compute_insights(db, since=window_since(days))
     return templates.TemplateResponse(
         request, "insights.html", {"current_user": user, "data": data, "days": days}

@@ -1,42 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head">
-  <h1>Estadísticas</h1>
-  <span class="range">
-    {% for d, lbl in [(30, "30 días"), (90, "90 días"), (0, "Todo")] %}
-    <a href="/insights?days={{ d }}"{% if d == days %} class="active"{% endif %}>{{ lbl }}</a>
+<link rel="stylesheet" href="/static/road-analytics.css">
+<div class="road-analytics">
+  <div class="page-head">
+    <h1>Análisis vial</h1>
+    <nav class="range" aria-label="Período de análisis">
+      {% for d, lbl in [(30, "30 días"), (90, "90 días"), (0, "Todo")] %}
+      <a href="/insights?days={{ d }}"{% if d == days %} class="active" aria-current="page"{% endif %}>{{ lbl }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+  <p class="page-sub">Accidentes por fecha del accidente y última predicción ML. Las predicciones no representan la prioridad operativa.</p>
+  {% if data.since %}
+  <p class="muted">Del {{ data.since.strftime('%d/%m/%Y') }} al {{ data.until.strftime('%d/%m/%Y') }} (ambos inclusive, calendario UTC).</p>
+  {% endif %}
+  <div class="analytics-kpis">
+    {% for label, value in [("Total de accidentes", data.total), ("Accidentes con predicción ML", data.with_prediction), ("Accidentes sin predicción ML", data.without_prediction), ("Accidentes con ubicación geográfica", data.with_coordinates)] %}
+    <div class="card kpi">
+      <div class="kpi-label">{{ label }}</div>
+      <div class="kpi-value">{{ value }}</div>
+    </div>
     {% endfor %}
-  </span>
-</div>
-<p class="page-sub">Consulta el total de accidentes, sus prioridades operativas, estados y tareas pendientes.</p>
-
-<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px">
-  {% for label, value, primary in [("Abiertos", data.open, true), ("Accidentes", data.total, false), ("Cerrados", data.closed, false),
-                          ("Tareas pendientes", data.open_followups, false)] %}
-  <div class="card kpi{% if primary %} kpi-primary{% endif %}">
-    <div class="kpi-label">{{ label }}</div>
-    <div class="kpi-value">{{ value }}</div>
   </div>
-  {% endfor %}
-</div>
+  <p class="muted">{{ data.undated }} accidentes sin fecha{% if days %}, contabilizados aparte y excluidos del período{% else %}, incluidos en el total y excluidos de los gráficos por fecha{% endif %}. {{ data.without_time }} accidentes del período sin hora.</p>
 
-{% if data.total == 0 %}
-<div class="empty">No hay accidentes en este período.</div>
-{% else %}
-{% macro breakdown(title, rows) %}
-<div class="card">
-  <h2>{{ title }}</h2>
-  {% set maxc = (rows | map(attribute='count') | max) or 1 %}
-  {% for r in rows %}
-  <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px">
-    <span style="flex:0 0 160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.label | ui_es }}</span>
-    <span class="bar" style="flex:1 1 auto"><span class="bar-fill" style="width:{{ (r.count / maxc * 100) | round }}%{% if r.color %}; background:{{ r.color }}{% endif %}"></span></span>
-    <span style="flex:0 0 68px; text-align:right"><b>{{ r.count }}</b> <span class="muted" style="font-size:11px">{{ (r.count / data.total * 100) | round }}%</span></span>
+  {% macro chart(title, rows, note='', scroll=false) %}
+  <section class="card analytics-chart">
+    <h2>{{ title }}</h2>
+    {% if note %}<p class="muted">{{ note }}</p>{% endif %}
+    <div{% if scroll %} class="analytics-scroll" tabindex="0" role="region" aria-label="{{ title }}"{% endif %}>
+      <ul class="analytics-bars">
+        {% for row in rows %}
+        <li>
+          <span class="analytics-label">{{ row.label }}</span>
+          <span class="bar" aria-hidden="true"><span class="bar-fill" style="width:{{ row.width }}%"></span></span>
+          <span class="analytics-count"><b>{{ row.count }}</b> <span class="muted">({{ row.percentage }}%)</span></span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% endmacro %}
+
+  {% if data.total == 0 %}
+  <div class="empty">No hay accidentes en este período.</div>
+  {% else %}
+  <div class="analytics-grid">
+    {{ chart("Última predicción ML por accidente", data.prediction_distribution, "Porcentajes sobre accidentes con predicción; cada accidente cuenta una sola vez.") }}
+    {{ chart("Calidad y completitud de datos", data.quality, "Porcentajes sobre el total del período. Los 11 datos incluyen fecha y hora, y deben ser compatibles con PredictionRequest; no se ejecuta el modelo.") }}
+    {% for distribution in data.road_distributions %}
+      {{ chart(distribution.title, distribution.rows, "Porcentajes sobre el total del período. Sin datos se contabiliza aparte de las categorías conocidas.") }}
+    {% endfor %}
+    {{ chart("Accidentes por día de la semana", data.weekdays, "Solo accidentes con fecha; orden STATS19 de domingo a sábado.") }}
+    {{ chart("Accidentes por hora del día", data.hours, "Solo accidentes con hora registrada.", true) }}
+    {{ chart("Evolución de accidentes · " ~ data.timeline.granularity, data.timeline.rows, "Solo accidentes con fecha. Los intervalos sin accidentes muestran cero.", true) }}
   </div>
-  {% endfor %}
+  {% endif %}
 </div>
-{% endmacro %}
-{{ breakdown("Por prioridad operativa", data.by_severity) }}
-{{ breakdown("Por estado", data.by_status) }}
-{% endif %}
 {% endblock %}

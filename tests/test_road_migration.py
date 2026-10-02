@@ -26,15 +26,37 @@ def test_upgrade_and_downgrade_preserve_existing_incidents(pg_engine, monkeypatc
                     "INSERT INTO incidents (title, is_private, creation_state) VALUES ('Anterior', false, '{}')"
                 )
             )
+        command.upgrade(config, "0018_road_accident_fields")
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE incidents SET speed_limit = 30, road_type = 6"))
+            before = dict(connection.execute(text("SELECT * FROM incidents")).mappings().one())
         command.upgrade(config, "head")
         columns = {c["name"]: c for c in inspect(engine).get_columns("incidents")}
         assert all(columns[key]["nullable"] for key in ROAD_FIELDS)
         with engine.connect() as connection:
             row = connection.execute(text("SELECT * FROM incidents")).mappings().one()
             assert row["title"] == "Anterior"
-            assert all(row[key] is None for key in ROAD_FIELDS)
+            assert all(row[key] == value for key, value in before.items())
+            assert all(
+                row[key] is None
+                for key in ("number_of_vehicles", "junction_detail", "first_road_class")
+            )
         with pytest.raises(IntegrityError), engine.begin() as connection:
             connection.execute(text("UPDATE incidents SET speed_limit = -1"))
+        for key, value in (
+            ("number_of_vehicles", 18),
+            ("junction_detail", 1),
+            ("first_road_class", 7),
+        ):
+            with pytest.raises(IntegrityError), engine.begin() as connection:
+                connection.execute(text(f"UPDATE incidents SET {key} = :value"), {"value": value})
+        command.downgrade(config, "0018_road_accident_fields")
+        columns = {c["name"] for c in inspect(engine).get_columns("incidents")}
+        assert not {"number_of_vehicles", "junction_detail", "first_road_class"} & columns
+        with engine.connect() as connection:
+            assert (
+                dict(connection.execute(text("SELECT * FROM incidents")).mappings().one()) == before
+            )
         command.downgrade(config, "0017_meet_service_account")
         assert not ROAD_FIELDS.keys() & {
             c["name"] for c in inspect(engine).get_columns("incidents")

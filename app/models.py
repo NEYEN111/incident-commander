@@ -291,6 +291,9 @@ class Incident(Base):
     light_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     weather_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     road_surface_conditions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    number_of_vehicles: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    junction_detail: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_road_class: Mapped[int | None] = mapped_column(Integer, nullable=True)
     __table_args__ = (
         CheckConstraint("latitude BETWEEN -90 AND 90", name="ck_incidents_latitude"),
         CheckConstraint("longitude BETWEEN -180 AND 180", name="ck_incidents_longitude"),
@@ -309,6 +312,17 @@ class Incident(Base):
         CheckConstraint(
             "road_surface_conditions IN (1, 2, 3, 4, 5)",
             name="ck_incidents_road_surface_conditions",
+        ),
+        CheckConstraint(
+            "number_of_vehicles BETWEEN 1 AND 17", name="ck_incidents_number_of_vehicles"
+        ),
+        CheckConstraint(
+            "junction_detail IN (-1, 0, 13, 16, 17, 18, 19, 99)",
+            name="ck_incidents_junction_detail",
+        ),
+        CheckConstraint(
+            "first_road_class IN (-1, 1, 2, 3, 4, 5, 6)",
+            name="ck_incidents_first_road_class",
         ),
     )
     severity_level_id: Mapped[int | None] = mapped_column(

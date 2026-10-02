@@ -24,6 +24,9 @@ ROAD_DATA = {
     "light_conditions": "1",
     "weather_conditions": "2",
     "road_surface_conditions": "2",
+    "number_of_vehicles": "2",
+    "junction_detail": "13",
+    "first_road_class": "3",
 }
 
 
@@ -68,6 +71,9 @@ def test_road_fields_round_trip_create_edit_detail_and_list(client, db_session):
     detail = client.get(f"/incidents/{incident.id}").text
     assert 'value="2026-09-30"' in detail and 'value="14:30"' in detail
     assert "Mojada/húmeda" in detail and "Lluvia sin viento fuerte" in detail
+    assert "<dt>Número de vehículos</dt><dd>2</dd>" in detail
+    assert "<dt>Detalle de la intersección</dt><dd>Intersección en T o escalonada</dd>" in detail
+    assert "<dt>Clase de la primera vía</dt><dd>Carretera A</dd>" in detail
     response = client.post(
         f"/incidents/{incident.id}/edit",
         data={
@@ -77,6 +83,9 @@ def test_road_fields_round_trip_create_edit_detail_and_list(client, db_session):
             "road_type": "1",
             "speed_limit": "20",
             "weather_conditions": "",
+            "number_of_vehicles": "17",
+            "junction_detail": "16",
+            "first_road_class": "6",
         },
         follow_redirects=False,
     )
@@ -84,7 +93,13 @@ def test_road_fields_round_trip_create_edit_detail_and_list(client, db_session):
     db_session.refresh(incident)
     assert incident.road_type == 1 and incident.speed_limit == 20
     assert incident.weather_conditions is None
+    assert incident.number_of_vehicles == 17
+    assert incident.junction_detail == 16 and incident.first_road_class == 6
     assert "Rotonda" in client.get(f"/incidents/{incident.id}").text
+    detail = client.get(f"/incidents/{incident.id}").text
+    assert "<dt>Número de vehículos</dt><dd>17</dd>" in detail
+    assert "<dt>Detalle de la intersección</dt><dd>Cruce de vías</dd>" in detail
+    assert "<dt>Clase de la primera vía</dt><dd>Sin clasificar</dd>" in detail
 
 
 def test_edit_omitted_fields_preserves_road_and_hidden_legacy_data(client, db_session):
@@ -108,6 +123,8 @@ def test_edit_omitted_fields_preserves_road_and_hidden_legacy_data(client, db_se
     db_session.refresh(incident)
     assert incident.system_id == system.id and incident.incident_type_id == kind.id
     assert incident.road_type == 6 and incident.date == date(2026, 9, 30)
+    assert incident.number_of_vehicles == 2
+    assert incident.junction_detail == 13 and incident.first_road_class == 3
 
 
 def test_unknown_and_absent_data_are_not_guessed(client, db_session):
@@ -116,6 +133,20 @@ def test_unknown_and_absent_data_are_not_guessed(client, db_session):
     assert incident.road_type == 9 and incident.weather_conditions == 9
     assert incident.date is None and incident.speed_limit is None
     assert "Desconocido" in client.get(f"/incidents/{incident.id}").text
+    for key in ("number_of_vehicles", "junction_detail", "first_road_class"):
+        assert getattr(incident, key) is None
+        label = ROAD_FIELDS[key]["label"]
+        assert f"<dt>{label}</dt><dd>Sin datos</dd>" in client.get(f"/incidents/{incident.id}").text
+    response = client.post(
+        f"/incidents/{incident.id}/edit",
+        data={"title": "Registro antiguo editado", "severity_level_id": incident.severity_level_id},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    db_session.refresh(incident)
+    assert incident.title == "Registro antiguo editado"
+    assert incident.number_of_vehicles is None
+    assert incident.junction_detail is None and incident.first_road_class is None
 
 
 @pytest.mark.parametrize(
@@ -134,6 +165,11 @@ def test_unknown_and_absent_data_are_not_guessed(client, db_session):
         ("speed_limit", "201"),
         ("date", "2026-02-31"),
         ("time", "25:30"),
+        ("number_of_vehicles", "0"),
+        ("number_of_vehicles", "18"),
+        ("number_of_vehicles", "1.5"),
+        ("junction_detail", "1"),
+        ("first_road_class", "7"),
     ],
 )
 def test_invalid_road_form_does_not_create_incident(client, db_session, key, value):
@@ -150,19 +186,30 @@ def test_invalid_service_edit_is_rejected_before_mutating_incident(client, db_se
     assert incident.title == "Colisión de prueba" and incident.speed_limit == 30
 
 
-def test_invalid_edit_keeps_existing_data(client, db_session):
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("road_type", "99"),
+        ("number_of_vehicles", "18"),
+        ("junction_detail", "1"),
+        ("first_road_class", "7"),
+    ],
+)
+def test_invalid_edit_keeps_existing_data(client, db_session, key, value):
     incident = _create(client, db_session, ROAD_DATA)
     response = client.post(
         f"/incidents/{incident.id}/edit",
         data={
             "title": "No guardar",
             "severity_level_id": incident.severity_level_id,
-            "road_type": "99",
+            key: value,
         },
     )
     assert response.status_code == 422
     db_session.refresh(incident)
     assert incident.title == "Colisión de prueba" and incident.road_type == 6
+    assert incident.number_of_vehicles == 2
+    assert incident.junction_detail == 13 and incident.first_road_class == 3
 
 
 def test_readonly_cannot_write_road_fields(client, db_session):
@@ -224,3 +271,14 @@ def test_blank_inputs_clear_values_but_omitted_inputs_are_preserved():
         "speed_limit": None,
     }
     assert validate_road_data({}) == {}
+    assert validate_road_data(
+        {"number_of_vehicles": "", "junction_detail": "", "first_road_class": ""}
+    ) == {
+        "number_of_vehicles": None,
+        "junction_detail": None,
+        "first_road_class": None,
+    }
+    assert validate_road_data({"junction_detail": "-1", "first_road_class": "-1"}) == {
+        "junction_detail": -1,
+        "first_road_class": -1,
+    }

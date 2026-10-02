@@ -1,6 +1,8 @@
 """Minimal STATS19 accident data, shared by validation and the web forms.
 
-Codes follow the classic STATS19 accident table. Missing data is stored as NULL;
+Existing fields follow classic STATS19; junction_detail uses the newer codes
+supported by the trained model. New category labels follow the STATS20/STATS19
+2024 documentation verified by the project owner. Missing data is stored as NULL;
 explicit unknown categories retain their STATS19 codes. Speed limits use mph.
 """
 
@@ -76,6 +78,39 @@ ROAD_FIELDS = {
             5: "Inundación de más de 3 cm",
         },
     },
+    "number_of_vehicles": {
+        "label": "Número de vehículos",
+        "type": "number",
+        "min": 1,
+        "max": 17,
+    },
+    "junction_detail": {
+        "label": "Detalle de la intersección",
+        "type": "select",
+        "options": {
+            -1: "Sin dato / fuera de rango",
+            0: "No está en una intersección o dentro de 20 m",
+            13: "Intersección en T o escalonada",
+            16: "Cruce de vías",
+            17: "Intersección con más de 4 brazos",
+            18: "Acceso o entrada privada",
+            19: "Otro tipo de intersección",
+            99: "Desconocido",
+        },
+    },
+    "first_road_class": {
+        "label": "Clase de la primera vía",
+        "type": "select",
+        "options": {
+            -1: "Sin dato / fuera de rango",
+            1: "Autopista (Motorway)",
+            2: "A(M)",
+            3: "Carretera A",
+            4: "Carretera B",
+            5: "Carretera C",
+            6: "Sin clasificar",
+        },
+    },
 }
 
 
@@ -90,6 +125,9 @@ class RoadData(BaseModel):
     light_conditions: Literal[1, 4, 5, 6, 7] | None = None
     weather_conditions: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9] | None = None
     road_surface_conditions: Literal[1, 2, 3, 4, 5] | None = None
+    number_of_vehicles: int | None = Field(default=None, ge=1, le=17)
+    junction_detail: Literal[-1, 0, 13, 16, 17, 18, 19, 99] | None = None
+    first_road_class: Literal[-1, 1, 2, 3, 4, 5, 6] | None = None
 
 
 def validate_road_data(raw: dict) -> dict:

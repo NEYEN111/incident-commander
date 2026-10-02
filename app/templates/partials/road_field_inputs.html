@@ -14,7 +14,7 @@
       {% else %}
       <input id="{{ field_prefix }}-{{ name }}" name="{{ name }}" type="{{ spec.type }}"
              value="{{ value.strftime('%H:%M') if name == 'time' and value else (value if value is not none else '') }}"
-             {% if spec.type == "number" %}step="{{ '1' if name == 'speed_limit' else 'any' }}" min="{{ spec.min }}" max="{{ spec.max }}"{% endif %}>
+             {% if spec.type == "number" %}step="{{ '1' if name in ['speed_limit', 'number_of_vehicles'] else 'any' }}" min="{{ spec.min }}" max="{{ spec.max }}"{% endif %}>
       {% endif %}
     </label>
   {% endfor %}

@@ -1,0 +1,24 @@
+.main:has(#accident-map) { max-width: none; }
+.map-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.map-filters label { display: grid; gap: 5px; flex: 1 1 160px; }
+.map-filters input, .map-filters select { width: 100%; min-width: 0; }
+.map-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.accident-legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--ink-2); }
+.accident-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.accident-legend i, .accident-marker span { display: block; width: 14px; height: 14px; border-radius: 50%; }
+.fatal { --marker-color: #e34b5c; }
+.grave { --marker-color: #f4b740; }
+.leve { --marker-color: #56b6e6; }
+.neutral { --marker-color: #8796a5; }
+.accident-legend i, .accident-marker span { background: var(--marker-color); }
+.accident-marker span { width: 20px; height: 20px; border: 2px solid white; box-shadow: 0 1px 4px #0008; }
+#accident-map { width: 100%; height: min(68vh, 760px); min-height: 360px; border: 1px solid var(--line); border-radius: var(--r); }
+#accident-map .leaflet-popup-content-wrapper, #accident-map .leaflet-popup-tip { background: var(--surface); color: var(--ink); }
+#accident-map .leaflet-popup-content { max-width: 260px; overflow-wrap: anywhere; }
+#accident-map .leaflet-popup-content p { margin: 7px 0; }
+#accident-map .leaflet-popup-content a { color: var(--accent); }
+#map-error { color: var(--ink); padding: 10px; border: 1px solid var(--line); }
+@media (max-width: 640px) {
+  .map-filters label { flex-basis: calc(50% - 12px); }
+  #accident-map { height: 60vh; min-height: 320px; }
+}

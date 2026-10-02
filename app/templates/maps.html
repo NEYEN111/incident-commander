@@ -1,80 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head"><h1>Service map</h1>
-  <span class="map-legend">
-    <span class="dot" style="background:#FF5D5D"></span>down
-    <span class="dot" style="background:#F4B740"></span>impacted
-    <span class="dot" style="background:#56B6E6"></span>ok
-    <span class="muted" style="margin-left:10px">large = system · small = component</span>
-  </span>
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/vendor/leaflet.markercluster/MarkerCluster.css">
+<link rel="stylesheet" href="/static/vendor/leaflet.markercluster/MarkerCluster.Default.css">
+<link rel="stylesheet" href="/static/accident-map.css">
+<div class="page-head"><h1>Mapa de accidentes</h1></div>
+<p class="page-sub">Solo se muestran accidentes con coordenadas registradas. Los colores representan la última predicción ML.</p>
+<form id="map-filters" class="map-filters">
+  <label>Desde<input type="date" name="date_from"></label>
+  <label>Hasta<input type="date" name="date_to"></label>
+  <label>Predicción ML
+    <select name="prediction">
+      <option value="">Todas</option><option>Fatal</option><option>Grave</option><option>Leve</option>
+      <option value="none">Sin predicción</option>
+    </select>
+  </label>
+  <label>Zona
+    <select name="zone">
+      <option value="">Todas</option><option value="1">Urbana</option>
+      <option value="2">Rural</option><option value="3">No determinada</option>
+    </select>
+  </label>
+  <button class="btn btn-sm" type="submit">Aplicar filtros</button>
+  <button class="btn btn-sm" type="reset">Limpiar</button>
+</form>
+<div class="map-summary">
+  <p id="map-status" role="status" aria-live="polite">Cargando accidentes…</p>
+  <div class="accident-legend" aria-label="Última predicción ML">
+    <span><i class="fatal"></i>Fatal</span><span><i class="grave"></i>Grave</span>
+    <span><i class="leve"></i>Leve</span><span><i class="neutral"></i>Sin predicción</span>
+  </div>
 </div>
-<p class="page-sub">Interactive 3D map of systems and components, with live blast-radius lighting up what open incidents affect.</p>
-<div id="graph-wrap">
-  <div id="graph"></div>
-  <div id="graph-labels"></div>
-</div>
-<script src="/static/3d-force-graph.min.js"></script>
-<script>
-(function () {
-  var graphEl = document.getElementById("graph");
-  var labelsEl = document.getElementById("graph-labels");
-  if (typeof ForceGraph3D === "undefined") { graphEl.textContent = "3D library failed to load."; return; }
-  var COLORS = { down: "#FF5D5D", impacted: "#F4B740", ok: "#56B6E6" };
-  var nodes = [];
-  var labelEls = {};
-
-  var Graph = ForceGraph3D()(graphEl)
-    .backgroundColor("#0B1116")
-    .nodeLabel("label")
-    .nodeColor(function (n) { return COLORS[n.status] || "#56B6E6"; })
-    .nodeVal(function (n) { return n.type === "system" ? 8 : 2; })
-    .linkColor(function (l) { return l.kind === "contains" ? "#22303C" : "#5E7180"; })
-    .linkWidth(function (l) { return l.kind === "dep" ? 1 : 0.5; })
-    .linkOpacity(0.5)
-    .linkDirectionalParticles(function (l) { return l.kind === "dep" ? 2 : 0; })
-    .linkDirectionalParticleSpeed(0.006);
-
-  // Always-on node names rendered as DOM labels, projected from 3D each frame
-  // (works with the vendored UMD build — no extra libraries).
-  function rebuildLabels() {
-    labelsEl.innerHTML = "";
-    labelEls = {};
-    nodes.forEach(function (n) {
-      var d = document.createElement("div");
-      d.className = "node-label";
-      d.textContent = n.label;
-      labelsEl.appendChild(d);
-      labelEls[n.id] = d;
-    });
-  }
-  function positionLabels() {
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i];
-      var d = labelEls[n.id];
-      if (!d || n.x == null) continue;
-      var c = Graph.graph2ScreenCoords(n.x, n.y, n.z);
-      var dy = n.type === "system" ? 14 : 9;
-      d.style.transform = "translate(-50%,-100%) translate(" + c.x + "px," + (c.y - dy) + "px)";
-      d.style.color = COLORS[n.status] || "#E7EEF4";
-      d.style.fontWeight = n.type === "system" ? "600" : "400";
-      d.style.fontSize = n.type === "system" ? "13px" : "11px";
-    }
-  }
-  (function frame() { positionLabels(); requestAnimationFrame(frame); })();
-
-  function fit() { Graph.width(graphEl.clientWidth).height(graphEl.clientHeight); }
-  fit();
-  window.addEventListener("resize", fit);
-
-  function load() {
-    fetch("/maps/graph.json").then(function (r) { return r.json(); }).then(function (d) {
-      nodes = d.nodes;
-      Graph.graphData(d);
-      rebuildLabels();
-    });
-  }
-  load();
-  setInterval(load, 15000);
-})();
-</script>
+<p id="map-error" role="alert" hidden></p>
+<div id="accident-map" aria-label="Mapa geográfico de accidentes"></div>
+<p class="muted">La predicción ML es una estimación y no modifica la prioridad operativa del accidente. El mapa base requiere conexión a Internet.</p>
+<script src="/static/vendor/leaflet/leaflet.js" defer></script>
+<script src="/static/vendor/leaflet.markercluster/leaflet.markercluster.js" defer></script>
+<script src="/static/accident-map.js" defer></script>
 {% endblock %}

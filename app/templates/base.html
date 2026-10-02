@@ -23,6 +23,7 @@
       {% set _p = request.url.path %}
       <nav class="nav">
         <a href="/" class="{{ 'active' if _p == '/' or _p.startswith('/incidents') else '' }}">Accidentes</a>
+        <a href="/maps" class="{{ 'active' if _p.startswith('/maps') else '' }}">Mapa de accidentes</a>
         <a href="/follow-ups" class="{{ 'active' if _p.startswith('/follow-ups') else '' }}">Seguimiento</a>
         <a href="/insights" class="{{ 'active' if _p.startswith('/insights') else '' }}">Estadísticas</a>
       </nav>

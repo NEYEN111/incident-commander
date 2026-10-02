@@ -250,7 +250,8 @@ def test_main_interface_is_spanish_and_technical_modules_hidden(client):
         assert f'name="{field}"' in home
     for field in ["system_id", "component_ids", "slack_connection_id", "video", "incident_type_id"]:
         assert f'name="{field}"' not in home
-    for path in ["/systems", "/components", "/maps", "/alerts", "/automations", "/postmortems"]:
+    assert 'href="/maps"' in home
+    for path in ["/systems", "/components", "/alerts", "/automations", "/postmortems"]:
         assert f'href="{path}"' not in home
     settings = client.get("/settings").text
     assert "Configuración" in settings and "Roles de responsables" in settings

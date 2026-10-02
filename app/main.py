@@ -25,6 +25,7 @@ from app.routers import invites as invites_router
 from app.routers import maps as maps_router
 from app.routers import oidc_auth as oidc_auth_router
 from app.routers import postmortems as postmortems_router
+from app.routers import prediction as prediction_router
 from app.routers import settings as settings_router
 from app.routers import users as users_router
 from app.services.users import bootstrap_admin
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(ingest_router.router)
     app.include_router(alerts_router.router)
     app.include_router(automation_router.router)
+    app.include_router(prediction_router.router)
     return app
 
 

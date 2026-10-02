@@ -1,0 +1,34 @@
+{
+    "nombre": "Random Forest - Gravedad de Accidentes",
+    "version": "1.0",
+    "archivo": "modelo_final.joblib",
+    "objetivo": "gravedad",
+    "clases": [
+        "Fatal",
+        "Grave",
+        "Leve"
+    ],
+    "variables": [
+        "day_of_week",
+        "hour",
+        "road_type",
+        "speed_limit",
+        "urban_or_rural_area",
+        "light_conditions",
+        "weather_conditions",
+        "road_surface_conditions",
+        "number_of_vehicles",
+        "junction_detail",
+        "first_road_class"
+    ],
+    "algoritmo": "RandomForestClassifier",
+    "parametros": {
+        "n_estimators": 150,
+        "max_depth": 16,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+    },
+    "sklearn_version": "1.6.1",
+    "joblib_version": "1.6.0"
+}

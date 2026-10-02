@@ -134,15 +134,19 @@ No exagerar tamaños ni pesos. Ancho de lectura habitual: 65–75 caracteres.
 | `shadow-none` | `none` | Filas, KPIs y paneles habituales |
 | `shadow-soft` | `0 1px 3px rgba(16,24,40,0.06)` | Elevación excepcional de un panel |
 | `shadow-overlay` | `0 8px 24px rgba(16,24,40,0.10)` | Menú desplegable o drawer |
-| `layout-sidebar` | `232px` | Navegación de escritorio |
-| `layout-header` | `56px` mínimo | Cabecera compacta móvil/tablet |
+| `layout-sidebar` | `232px` | Laptop y PC: permanente desde 1024 px cuando haya espacio suficiente |
+| `layout-header` | `56px` mínimo | Cabecera compacta para adaptación básica por debajo de 1024 px |
 | `layout-content-max` | `1200px` | Listado, detalle y estadísticas |
 | `layout-form-max` | `880px` | Registro/edición |
 | `layout-auth-max` | `400px` | Login |
 | `layout-map-max` | `1600px` | Mapa, aprovecha el espacio disponible |
-| `layout-gutter` | `32px / 24px / 16px` | Escritorio / tablet / móvil |
+| `layout-gutter` | `32px / 24px / 16px` | Laptop y PC prioritarios / adaptación intermedia / compatibilidad básica en anchos pequeños |
 | `control-min-height` | `44px` | Inputs, selects y botones |
 | `target-min-size` | `44 × 44px` | Área interactiva, incluidos iconos |
+
+Priorizar el layout de laptop para la presentación de la tarea, especialmente en
+1024, 1280, 1366 y 1440 px. PC tiene prioridad alta: aprovechar pantallas grandes
+respetando el max-width por tarea. Android requiere solo compatibilidad básica.
 
 ## 4. Arquitectura de navegación
 
@@ -185,6 +189,11 @@ Mantener permisos del servidor; ocultar acciones en pantalla no sustituye la aut
 
 ## 6. Reglas por pantalla
 
+Diseñar las pantallas principalmente para laptop y, con prioridad alta, PC.
+Las adaptaciones a anchos pequeños aseguran compatibilidad básica en Android:
+lectura, navegación y formularios utilizables sin overflow horizontal; no implican
+optimización visual avanzada ni patrones especiales para móvil.
+
 ### Login
 
 Superficie blanca sobre fondo claro, ancho máximo 400 px, identidad y título sobrios.
@@ -212,7 +221,7 @@ con etiqueta completa y estilo neutral; sin una franja roja que parezca predicci
 Si se muestra ML en esta pantalla en el futuro, utilizar un campo separado con el
 prefijo «ML» y solo cuando el backend entregue la última predicción; no consultar
 por fila ni derivar su gravedad de `severity_level`.
-Acciones de fila discretas; cierre no debe dominar. En móvil, filas apiladas con
+Acciones de fila discretas; cierre no debe dominar. En anchos pequeños, filas apiladas con
 la información esencial visible y metadatos secundarios en una segunda línea.
 
 ### Registro y edición
@@ -225,14 +234,14 @@ Compartir la misma organización de campos y los parciales existentes. Secciones
 4. Entorno: iluminación, meteorología y superficie.
 5. Vehículos: número de vehículos y ayuda sobre compatibilidad ML.
 
-Dos columnas en escritorio/tablet cuando los campos quepan con comodidad; una en
-móvil. Etiquetas completas y sin truncar categorías largas. No cambiar los códigos
+Dos columnas en laptop, PC y anchos intermedios cuando los campos quepan con comodidad;
+una en anchos pequeños para compatibilidad básica. Etiquetas completas y sin truncar categorías largas. No cambiar los códigos
 ni las reglas de `road_fields.py` por motivos visuales. No convertir datos opcionales
 en obligatorios para guardar: los accidentes antiguos incompletos deben funcionar.
 Indicar por separado los requisitos para predecir: 11 entradas derivadas de fecha,
 hora y nueve campos; velocidad compatible 20/30/40/50/60/70 mph y vehículos 1–17.
 El registro actual admite velocidades más amplias: explicarlo sin alterar su contrato.
-Acciones al final, sin una barra fija que oculte campos al abrir el teclado móvil.
+Acciones al final, sin una barra fija que oculte campos al abrir el teclado en Android.
 
 ### Detalle del accidente
 
@@ -241,8 +250,8 @@ La fecha de registro administrativo sigue separada. Mantener organización exist
 Resumen, Roles, Cronología y Seguimiento; al implementar accesibilidad, navegación
 por teclado coherente en las pestañas. Datos viales en pares etiqueta/valor, sin
 meter cada campo en una tarjeta. Edición contextual y reconocible.
-En escritorio, sección ML junto o después de los datos relevantes según espacio;
-en móvil, apilada antes de las acciones de edición. Cronología legible y compacta,
+En laptop y PC, sección ML junto o después de los datos relevantes según espacio;
+en anchos pequeños, apilada antes de las acciones de edición. Cronología legible y compacta,
 con fecha, autor y evento; sustituir emojis por texto o SVG local accesible.
 
 ### Predicción ML
@@ -282,7 +291,7 @@ conteo neutral, no una gravedad agregada ficticia.
 Popup: identificación, fecha, hora, zona, última predicción y probabilidades reales;
 «Ver accidente» como acción inequívoca. No introducir coordenadas artificiales,
 heatmap, mapas 3D ni información meteorológica nueva. Altura orientativa de escritorio:
-`clamp(420px, 70dvh, 900px)`; móvil: `60dvh` con mínimo de 320 px y fallback `vh`.
+`clamp(420px, 70dvh, 900px)`; compatibilidad en anchos pequeños: `60dvh` con mínimo de 320 px y fallback `vh`.
 Controles de mapa con targets de 44 px. Permitir continuar desplazando la página;
 no exigir gestos complejos para acceder al detalle de un accidente.
 
@@ -321,24 +330,39 @@ No volver a mostrar módulos SRE ocultos por el hecho de rediseñar la navegaci�
 
 ## 7. Responsive real
 
-| Rango | Navegación | Contenido |
+Prioridades: **laptop, prioridad máxima; PC de escritorio, prioridad alta;
+Android, compatibilidad básica secundaria**. La presentación de la tarea se realizará
+en laptop. Android no es una prioridad de diseño: asegurar navegación, formularios
+básicos y controles táctiles razonables, sin overflow horizontal ni contenido roto.
+No dedicar trabajo específico a iPhone/iOS, Safari móvil, tablets, su orientación,
+patrones especiales para móvil ni optimización visual avanzada de Android.
+Los demás anchos requieren adaptación fluida sin romperse.
+
+| Objetivo / rango | Navegación | Contenido |
 | --- | --- | --- |
-| Móvil: <768 px | Cabecera compacta y botón «Menú»; drawer accesible futuro | Una columna, gutter 16 px, KPIs 1–2 columnas según anchura, formularios apilados |
-| Tablet: 768–1023 px | Cabecera y menú desplegable/drawer, sin sidebar permanente | Gutter 24 px, dos columnas solo cuando sean legibles, mapa amplio |
-| Escritorio: ≥1024 px | Sidebar de 232 px, sección activa clara | Gutter 32 px, max-width por tarea; cuatro KPIs si caben |
+| Laptop: prioridad máxima; optimizar 1024, 1280, 1366 y 1440 px | Sidebar permanente de 232 px desde 1024 px cuando haya espacio suficiente; sección activa clara | Gutter 32 px, max-width por tarea y scroll vertical en ventanas de poca altura; cuatro KPIs si caben |
+| PC: prioridad alta; pantallas grandes | Sidebar permanente de 232 px desde 1024 px cuando haya espacio suficiente; sección activa clara | Gutter 32 px y max-width por tarea; aprovechar el espacio sin estirar contenido innecesariamente |
+| Android: compatibilidad básica, referencia 360–430 px | Cabecera compacta y botón «Menú»; navegación utilizable sin enlaces envueltos horizontalmente | Una columna, gutter 16 px, formularios básicos utilizables y controles táctiles de mínimo 44 × 44 px; sin optimización visual avanzada |
+| Otros anchos: adaptación fluida; por debajo de 1024 px | Cabecera compacta y menú, sin sidebar permanente | Gutter adaptable de 16–24 px, columnas solo cuando sean legibles; sin experiencia especial de tablet ni overflow |
 
 Drawer futuro: cierre con Escape y botón visible, foco inicial y retorno al botón
 que lo abrió, fondo no interactivo y orden de tabulación controlado. No implementarlo
 en esta fase documental. Evitar una fila móvil de seis destinos que se envuelva
 sin jerarquía, como ocurre con la navegación actual.
 
-- Verificar anchuras 320, 390, 768, 1024 y 1440 px, zoom 200 % y reflow a 400 %.
+- Priorizar la validación visual de laptop en 1024, 1280, 1366 y 1440 px,
+  seguida de PC en pantallas grandes. En Android (referencia 360–430 px), comprobar
+  solo compatibilidad básica: navegación, formularios, controles táctiles y ausencia
+  de overflow horizontal. Comprobar adaptación fluida en otros anchos.
+  Mantener zoom 200 % y reflow a 400 %.
+- Permitir scroll vertical del contenido y la navegación en ventanas de poca altura.
 - No bloquear orientación ni fijar el ancho del contenido al viewport de escritorio.
 - Formularios al 100 % disponible; fechas/categorías largas no fuerzan overflow.
 - Tablas pueden tener scroll horizontal localizado con cabeceras y región accesibles;
   el resto de la página no debe desplazarse horizontalmente.
-- En móvil, filtros del mapa agrupados en un desplegable accesible; mostrar resumen
-  de filtros activos, botón Limpiar y contador incluso con el panel cerrado.
+- En anchos pequeños, mantener los filtros del mapa utilizables; si necesitan un
+  desplegable para evitar overflow, será accesible y conservará el resumen de filtros
+  activos, botón Limpiar y contador incluso con el panel cerrado.
 - Estadísticas en una columna; conservar etiquetas, cantidades y unidades. Si hace
   falta scroll en un gráfico largo, la región será identificable y usable con teclado.
 - Detalle y popups sin truncar información esencial; permitir salto de línea.

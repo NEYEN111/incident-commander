@@ -20,8 +20,9 @@ def test_readonly_sees_road_navigation_not_technical_or_admin_links(client, db_s
     db_session.flush()
     client.post("/login", data={"email": "ro@x.io", "password": "pw-123456"})
     html = client.get("/").text
-    for path in ("/systems", "/components", "/maps", "/alerts", "/automations", "/postmortems"):
+    for path in ("/systems", "/components", "/alerts", "/automations", "/postmortems"):
         assert f'href="{path}"' not in html
+    assert 'href="/maps"' in html and "Mapa de accidentes" in html
     assert 'href="/insights"' in html and "Estadísticas" in html
     assert 'lang="es"' in html and "Sistema de Gestión de Accidentes Viales" in html
     assert 'href="/users"' not in html and 'href="/connections"' not in html

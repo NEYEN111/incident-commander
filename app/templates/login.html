@@ -1,14 +1,23 @@
 {% extends "base.html" %}
+{% block body_class %}pilot-login{% endblock %}
 {% block content %}
-<div class="auth">
-  <form class="auth-card" method="post" action="/login">
-    <div class="mark">{{ app_name }}</div>
-    <h1>Iniciar sesión</h1>
-    {% if error %}<div class="alert">{{ error | ui_es }}</div>{% endif %}
-    <label class="field"><span>Correo electrónico</span><input type="email" name="email" required autofocus></label>
-    <label class="field"><span>Contraseña</span><input type="password" name="password" required></label>
-    <button class="btn btn-primary" type="submit">Iniciar sesión</button>
-  </form>
-  {% if sso_enabled %}<a class="btn" href="/login/oidc" style="width:100%;justify-content:center;margin-top:10px">Iniciar sesión con {{ sso_display_name or "SSO" }}</a>{% endif %}
+<div class="pilot-auth">
+  <section class="pilot-auth-card" aria-labelledby="login-title">
+    <div class="pilot-auth-brand">{{ app_name }}</div>
+    <h1 id="login-title">Iniciar sesión</h1>
+    {% if error %}<div class="pilot-login-error" id="login-error" role="alert">{{ error | ui_es }}</div>{% endif %}
+    <form class="pilot-login-form" method="post" action="/login"{% if error %} aria-describedby="login-error"{% endif %}>
+      <label for="login-email">Correo electrónico</label>
+      <input id="login-email" type="email" name="email" value="{{ email | default('') }}" autocomplete="username" required autofocus>
+      <label for="login-password">Contraseña</label>
+      <input id="login-password" type="password" name="password" autocomplete="current-password" required>
+      <button class="pilot-login-submit" type="submit">Iniciar sesión</button>
+    </form>
+    {% if sso_enabled %}
+    <div class="pilot-sso">
+      <a class="pilot-sso-link" href="/login/oidc">Iniciar sesión con {{ sso_display_name or "SSO" }}</a>
+    </div>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

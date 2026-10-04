@@ -1,3 +1,5 @@
+from html.parser import HTMLParser
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -52,6 +54,33 @@ def test_save_smtp_and_keep_password(client, db_session):
     )
     s2 = smtp_settings(db_session)
     assert s2.host == "smtp.y" and s2.password == "secret"
+
+    # Configuration secrets must not be treated as this site's login password.
+    # Blank values also preserve the stored secret when the form is submitted.
+    class Inputs(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.fields = {}
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == "input" and attributes.get("name") in {
+                "username",
+                "password",
+                "client_id",
+                "client_secret",
+            }:
+                self.fields[attributes["name"]] = attributes
+
+    page = client.get("/settings")
+    assert page.status_code == 200
+    inputs = Inputs()
+    inputs.feed(page.text)
+    for name in ("password", "client_secret"):
+        assert inputs.fields[name]["autocomplete"] == "new-password"
+        assert not inputs.fields[name].get("value")
+    for name in ("username", "client_id"):
+        assert inputs.fields[name]["autocomplete"] == "off"
 
 
 def test_non_admin_cannot_save_smtp(client, db_session):

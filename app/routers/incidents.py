@@ -25,6 +25,7 @@ from app.services.incident_predictions import (
     PredictionDataError,
     PredictionUnavailableError,
     create_prediction,
+    latest_prediction_labels,
     recent_predictions,
 )
 from app.services.incident_types import default_incident_type_id, list_incident_types
@@ -65,12 +66,16 @@ def history(request: Request, user: User = Depends(require_user), db: Session = 
     from app.services.custom_fields import fields_for_type
 
     fields = fields_for_type(db, _default_type_id)
+    incidents = list_incidents(db)
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "current_user": user,
-            "incidents": list_incidents(db),
+            "incidents": incidents,
+            "latest_ml_labels": latest_prediction_labels(
+                db, [incident.id for incident in incidents]
+            ),
             "severity_levels": severity_levels,
             "default_severity_level_id": _initial_severity_id,
             "default_incident_type_id": _default_type_id,
@@ -284,19 +289,39 @@ def detail(
 def predict_incident(
     request: Request,
     incident_id: int,
+    road_data: dict = Depends(road_form),
     user: User = Depends(require_role(Role.incident_commander)),
     db: Session = Depends(get_db),
 ):
     incident = db.get(Incident, incident_id)
     if incident is None:
         return HTMLResponse("Accidente no encontrado", status_code=404)
+    # Only manual ML inputs belong to this action; operational data stays in edit.
+    manual_fields = {
+        "road_type",
+        "speed_limit",
+        "urban_or_rural_area",
+        "light_conditions",
+        "weather_conditions",
+        "road_surface_conditions",
+        "number_of_vehicles",
+        "junction_detail",
+        "first_road_class",
+    }
+    analysis_data = {key: value for key, value in road_data.items() if key in manual_fields}
+    if analysis_data:
+        update_incident(db, incident, road_data=analysis_data)
+    anchor = "ml-prediction"
     try:
         create_prediction(db, incident, created_by=user.id)
     except (PredictionDataError, PredictionUnavailableError) as exc:
-        request.session["flash"] = str(exc)
+        request.session["flash"] = ("Datos de análisis guardados. " if analysis_data else "") + str(
+            exc
+        )
     else:
         request.session["flash"] = "Predicción ML guardada."
-    return RedirectResponse(f"/incidents/{incident_id}", status_code=303)
+        anchor = "ml-result-title"
+    return RedirectResponse(f"/incidents/{incident_id}#{anchor}", status_code=303)
 
 
 @router.post("/incidents/{incident_id}/edit")
@@ -469,7 +494,13 @@ def close(
         db.commit()
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse(
-            request, "partials/incident_row.html", {"current_user": user, "i": inc}
+            request,
+            "partials/incident_row.html",
+            {
+                "current_user": user,
+                "i": inc,
+                "latest_ml_labels": latest_prediction_labels(db, [inc.id]),
+            },
         )
     return RedirectResponse("/", status_code=303)
 

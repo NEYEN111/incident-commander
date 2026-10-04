@@ -1,8 +1,10 @@
 """Road analytics based on accident dates and one latest ML result per accident."""
 
+import json
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from math import isfinite
+from pathlib import Path
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
@@ -19,6 +21,22 @@ ROAD_BREAKDOWNS = (
     "road_surface_conditions",
     "light_conditions",
 )
+
+
+def load_model_metadata(path: Path | None = None) -> dict | None:
+    """Read the saved description without loading or executing the ML pipeline."""
+    path = path or Path(__file__).resolve().parents[2] / "models" / "modelo_info.json"
+    try:
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return metadata if isinstance(metadata, dict) else None
+
+
+def load_model_evaluation() -> dict | None:
+    return load_model_metadata(
+        Path(__file__).resolve().parents[2] / "models" / "modelo_evaluacion.json"
+    )
 
 
 def window_since(days: int, *, today: date | None = None) -> date | None:
@@ -53,24 +71,42 @@ def _coordinates(incident: Incident) -> bool:
     )
 
 
-def _timeline(dates: list[date], since: date | None, until: date | None) -> dict:
+def _timeline(
+    dates: list[date], since: date | None, until: date | None, *, predicted_dates: list[date]
+) -> dict:
     start = since or min(dates, default=None)
     end = until or max(dates, default=None)
     if start is None or end is None:
-        return {"granularity": "Diaria", "rows": []}
+        return {"granularity": "Diaria", "rows": [], "dated_total": 0}
     monthly = (end - start).days > 90
-    counts = Counter(d.strftime("%Y-%m" if monthly else "%d/%m/%Y") for d in dates)
+    date_format = "%Y-%m" if monthly else "%d/%m/%Y"
+    counts = Counter(d.strftime(date_format) for d in dates)
+    predicted = Counter(d.strftime(date_format) for d in predicted_dates)
     labels = []
     cursor = start.replace(day=1) if monthly else start
     while cursor <= end:
-        labels.append(cursor.strftime("%Y-%m" if monthly else "%d/%m/%Y"))
+        labels.append(cursor.strftime(date_format))
         if monthly:
             cursor = date(cursor.year + cursor.month // 12, cursor.month % 12 + 1, 1)
         else:
             cursor += timedelta(days=1)
+    rows = _bars(counts, labels, denominator=len(dates))
+    maximum = max(counts.values(), default=0) or 1
+    for index, row in enumerate(rows):
+        row["predicted_count"] = predicted[row["label"]]
+        # Shared count axis for both series; every empty calendar interval is kept.
+        row["x"] = round(52 + index * 728 / max(len(rows) - 1, 1), 2)
+        row["total_y"] = round(184 - row["count"] / maximum * 168, 2)
+        row["predicted_y"] = round(184 - row["predicted_count"] / maximum * 168, 2)
+    ticks = sorted({0, maximum // 2, maximum})
     return {
         "granularity": "Mensual" if monthly else "Diaria",
-        "rows": _bars(counts, labels, denominator=len(dates)),
+        "rows": rows,
+        "dated_total": len(dates),
+        "predicted_total": len(predicted_dates),
+        "ticks": [{"count": n, "y": round(184 - n / maximum * 168, 2)} for n in ticks],
+        "total_points": " ".join(f"{row['x']},{row['total_y']}" for row in rows),
+        "predicted_points": " ".join(f"{row['x']},{row['predicted_y']}" for row in rows),
     }
 
 
@@ -97,6 +133,11 @@ def compute_insights(db: Session, *, since: date | None, until: date | None = No
     predicted = Counter(severity for _, severity in rows if severity is not None)
     with_prediction = sum(predicted.values())
     dates = [incident.date for incident, _ in rows if incident.date is not None]
+    predicted_dates = [
+        incident.date
+        for incident, severity in rows
+        if incident.date is not None and severity is not None
+    ]
     hours = Counter(
         f"{incident.time.hour:02d}:00" for incident, _ in rows if incident.time is not None
     )
@@ -140,7 +181,7 @@ def compute_insights(db: Session, *, since: date | None, until: date | None = No
         "road_distributions": distributions,
         "weekdays": _bars(weekdays, list(WEEKDAYS), denominator=len(dates)),
         "hours": _bars(hours, [f"{h:02d}:00" for h in range(24)], denominator=sum(hours.values())),
-        "timeline": _timeline(dates, since, until),
+        "timeline": _timeline(dates, since, until, predicted_dates=predicted_dates),
         "quality": _bars(
             Counter(
                 {

@@ -65,18 +65,25 @@ def test_settings_google_blank_json_keeps_current(client, db_session):
 def test_settings_google_sa_write_only(client, db_session):
     """The service_account_json must never be rendered back in the page HTML."""
     _admin(client, db_session)
-    client.post(
+    saved = client.post(
         "/settings/google",
         data={
             "service_account_json": '{"type":"service_account","client_email":"secret@proj.iam"}',
             "impersonate_email": "admin@example.com",
             "enabled": "true",
         },
+        follow_redirects=False,
     )
-    html = client.get("/settings").text
+    assert saved.status_code == 303 and saved.headers["location"] == "/settings"
+    response = client.get("/settings")
+    assert response.status_code == 200
+    html = response.text
     # The stored JSON must not appear verbatim in the rendered page
     assert "secret@proj.iam" not in html
-    # But impersonate_email IS rendered (it's not a secret)
-    assert "admin@example.com" in html
-    # Placeholder confirms it's configured
-    assert "configured" in html
+    # The entire SRE form is intentionally hidden; configuration still persists.
+    assert 'name="service_account_json"' not in html
+    assert 'name="impersonate_email"' not in html
+    g = google_settings(db_session)
+    assert g.service_account_json == '{"type":"service_account","client_email":"secret@proj.iam"}'
+    assert g.impersonate_email == "admin@example.com"
+    assert g.enabled is True

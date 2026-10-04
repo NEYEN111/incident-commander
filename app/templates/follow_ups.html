@@ -1,27 +1,27 @@
 {% extends "base.html" %}
+{% block title %}Seguimiento · {{ app_name }}{% endblock %}
+{% block page_surface %}support-page {% endblock %}
 {% block content %}
-<div class="page-head">
-  <h1>Seguimiento</h1>
-  <span class="stats"><b>{{ items | length }}</b> pendientes</span>
-</div>
+<link rel="stylesheet" href="/static/support-pages.css?v=1">
+<div class="page-head"><h1>Seguimiento</h1><span class="stats">{{ items | length }} pendientes</span></div>
 <p class="page-sub">Consulta las tareas pendientes de los accidentes y sus responsables.</p>
 {% if items %}
-<div class="incident-list">
+<ul class="follow-list">
   {% for f in items %}
-  <div class="incident" style="--sev-color: var(--sev2)">
-    <span class="status" data-status="active"><span class="dot"></span>pendiente</span>
-    <div class="inc-main">
-      <div class="inc-title">{{ f.title }}</div>
-      <div class="inc-meta">
-        <a class="chip" href="/incidents/{{ f.incident_id }}">{{ f.incident.title }}</a>
-        <span>{{ f.assignee.name if f.assignee else "sin asignar" }}</span>
-        {% if f.due_on %}<span>· vence {{ f.due_on.strftime("%d/%m/%Y") }}</span>{% endif %}
+  <li class="follow-row">
+    <div>
+      <h2>{{ f.title }}</h2>
+      <a href="/incidents/{{ f.incident_id }}">{{ f.incident.title }}</a>
+      <div class="follow-meta">
+        <span>Responsable: {{ f.assignee.name if f.assignee else "sin asignar" }}</span>
+        {% if f.due_on %}<span>Vence: {{ f.due_on.strftime("%d/%m/%Y") }}</span>{% endif %}
       </div>
     </div>
-  </div>
+    <span class="follow-state">Pendiente</span>
+  </li>
   {% endfor %}
-</div>
+</ul>
 {% else %}
-<div class="empty">No hay tareas pendientes.</div>
+<div class="empty"><strong>No hay tareas pendientes.</strong><p>Las tareas pendientes de los accidentes aparecerán aquí con su responsable y plazo, cuando exista.</p></div>
 {% endif %}
 {% endblock %}

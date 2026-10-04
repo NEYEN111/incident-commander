@@ -35,7 +35,7 @@ def login_submit(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Invalid credentials", **_sso_context(db)},
+            {"error": "Invalid credentials", "email": email, **_sso_context(db)},
             status_code=401,
         )
     sso = sso_settings(db)
@@ -45,6 +45,7 @@ def login_submit(
             "login.html",
             {
                 "error": "Local login is disabled — sign in with SSO.",
+                "email": email,
                 "sso_enabled": True,
                 "sso_display_name": sso.display_name,
             },

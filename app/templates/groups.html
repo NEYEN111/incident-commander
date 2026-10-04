@@ -1,32 +1,34 @@
 {% extends "base.html" %}
+{% block title %}Grupos · {{ app_name }}{% endblock %}
+{% block page_surface %}support-page {% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/support-pages.css?v=1">
 <div class="page-head"><h1>Grupos</h1><span class="stats">{{ groups | length }} total</span></div>
 <p class="page-sub">Organiza los usuarios por grupos y asigna roles de administrador, coordinador o solo lectura.</p>
-
-<div class="card">
-  <h2>Nuevo grupo</h2>
-  <form class="form-row" method="post" action="/groups">
-    <input class="grow" name="name" placeholder="Nombre del grupo" required autocomplete="off">
-    <select name="role" aria-label="Rol">{% for r in roles %}<option value="{{ r.value | ui_es }}">{{ r.value | ui_es }}</option>{% endfor %}</select>
+<section class="card" aria-labelledby="create-group-title">
+  <h2 id="create-group-title">Nuevo grupo</h2>
+  <form class="form-row compact-form group-create" method="post" action="/groups">
+    <label class="field-block"><span>Nombre del grupo</span><input name="name" required autocomplete="off"></label>
+    <label class="field-block"><span>Rol</span><select name="role">{% for r in roles %}<option value="{{ r.value }}">{{ r.value | ui_es }}</option>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">Crear grupo</button>
   </form>
-</div>
-
-<div class="card">
-  <h2>Grupos registrados</h2>
+</section>
+<section class="card" aria-labelledby="groups-title">
+  <h2 id="groups-title">Grupos registrados</h2>
+  <div class="table-scroll" role="region" aria-labelledby="groups-title" tabindex="0">
   <table>
-    <thead><tr><th>Nombre</th><th>Rol</th><th>Tipo</th></tr></thead>
+    <thead><tr><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Tipo</th></tr></thead>
     <tbody>
     {% for g in groups %}
       <tr>
         <td>{{ g.name | ui_es }}</td>
-        <td><span class="role" data-role="{{ g.role.value | ui_es }}">{{ g.role.value | ui_es }}</span></td>
+        <td><span class="role">{{ g.role.value | ui_es }}</span></td>
         <td>{% if g.is_system %}<span class="muted">del sistema</span>{% else %}personalizado{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-</div>
-
-<p><a class="backlink" href="/users">← Volver a usuarios</a></p>
+  </div>
+</section>
+<p><a class="backlink" href="/users">Volver a usuarios</a></p>
 {% endblock %}

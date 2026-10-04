@@ -36,6 +36,8 @@ def test_login_failure_shows_error(client, db_session):
     db_session.flush()
     r = client.post("/login", data={"email": "a@x.io", "password": "bad"}, follow_redirects=False)
     assert r.status_code == 401
+    assert 'value="a@x.io"' in r.text
+    assert 'value="bad"' not in r.text
 
 
 def test_login_sets_last_login_at(client, db_session):

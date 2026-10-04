@@ -1,241 +1,140 @@
-# Incident Commander
+# Sistema de Gestión de Accidentes Viales
 
-Open-source, self-hosted incident management. Declare an incident in one click and — once
-configured — it opens a Slack channel and a video bridge, captures a timeline of everything that
-happens, tracks roles, follow-ups and custom fields, and gives you a calm place to run the
-response. Built to run on your own infrastructure, behind your own SSO.
+Aplicación web académica para registrar accidentes viales, estimar su gravedad con Machine
+Learning, consultar estadísticas y localizarlos en un mapa.
 
-[![CI](https://github.com/giammbo/incident-commander/actions/workflows/ci.yml/badge.svg)](https://github.com/giammbo/incident-commander/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](pyproject.toml)
+> **Alcance y límites.** La aplicación estima una gravedad (Fatal / Grave / Leve) a partir del
+> contexto vial. No determina culpabilidad, no sustituye una valoración profesional y no es un
+> sistema certificado de diagnóstico o riesgo. Una predicción *Leve* **no** significa que un
+> accidente sea seguro.
 
-![Incident Commander dashboard](assets/dashboard.png)
+## Flujo principal
 
-> **Status — production-shaped and running today.** Local auth + RBAC + generic OIDC SSO, the full
-> configurable incident lifecycle (severities, statuses, types, roles, timeline, follow-ups, custom
-> fields), **postmortems**, **insights/analytics**, **stakeholder updates**, **inbound alerting**
-> (AWS CloudWatch/SNS, Prometheus Alertmanager, generic webhook), an **automation/workflow engine**
-> (trigger → conditions → actions), a systems/components catalogue with team ownership and a live 3D
-> dependency map, and the optional Slack / Google Meet / outgoing-webhook / SMTP integrations are all in place.
+Registrar accidente → completar datos viales → **Analizar con ML** → se guarda la predicción
+(probabilidades, versión del modelo y datos de entrada) → se ve en **Estadísticas** → se localiza en
+**Mapa** si tiene coordenadas.
 
-## Features
+## Dos conceptos que no deben mezclarse
 
-### Incidents
+| Concepto | Valores | Qué es |
+| --- | --- | --- |
+| Prioridad operativa | `SEV1` / `SEV2` / `SEV3` | Decisión humana de gestión: a qué accidente atender antes. |
+| Gravedad estimada | `Fatal` / `Grave` / `Leve` | Salida del modelo ML. No se deriva de la prioridad ni la determina. |
 
-- **One-click declaration** — title, severity, type, public/private, affected system + components, and a **Markdown description**. The chosen **type pre-fills the default severity** and the applicable custom fields.
-- **Configurable lifecycle statuses** — define your own workflow (e.g. Triage → Investigating → Identified → Monitoring → Closed); each status carries a category (`triage` / `active` / `closed`) so "is it still open?" logic just works. Reopening is supported.
-- **Configurable severities** — your own levels (`SEV1–SEV3`, `P1–P4`, …) with labels, **colours**, and order.
-- **Configurable incident types** — Outage / Degraded / Maintenance / Security … each optionally driving a default severity.
-- **Roles & assignees** — admin-defined role types (Incident Lead, Communications, Scribe, …); assign one or more people per role on an incident.
-- **Timeline** — an automatic chronological log (opened, status change, reopened, closed, role change, Slack/video added) plus **Markdown notes** you can pin.
-- **Follow-ups / action items** — create, assign (with a due date), and complete/cancel action items per incident; a global **Follow-ups** page surfaces all open items across incidents.
-- **Custom fields** — admin-defined fields (text, long text, single/multi-select, number, checkbox, date), scoped per incident type, shown on the declare form (type-dependent) and the detail.
-- **Stakeholder updates** — post a Markdown broadcast (optionally with a status change) that lands on the timeline, posts to the incident's Slack channel, and fires the outgoing webhooks with an `update` event.
-- **Postmortems** — a single Markdown document per incident, pre-assembled from the timeline + follow-ups, then editable. If the incident had a Google Meet, the Gemini-generated notes are pulled in automatically (after the call) as a **"Meeting notes (Gemini)"** section — Gemini smart notes and transcription are on by default for every incident Meet (requires the Google Meet API + Gemini for Workspace).
+Se guardan en campos distintos, se muestran con identidad visual distinta y el mapa filtra por la
+gravedad estimada, no por la prioridad.
 
-### Insights
+## Funcionalidades
 
-- **Dashboard + breakdowns** — totals (open/closed), **MTTR**, open follow-ups, and breakdowns by severity / type / status / system / team over a selectable window (30d / 90d / all), with semantic bar colours.
+- Alta y edición de accidentes: fecha, hora, coordenadas y características viales (variables STATS19).
+- Prioridad operativa, estado, responsables y seguimiento (tareas con responsable y plazo).
+- Análisis ML con historial: cada análisis es una *instantánea* independiente.
+- Estadísticas: datos registrados (distribuciones, línea temporal, calidad de datos) separados de
+  la evaluación académica documentada del modelo.
+- Mapa con Leaflet y OpenStreetMap, filtros por fecha, gravedad estimada y zona.
+- Usuarios, grupos (roles: Administrador, Coordinador, Solo lectura) y configuración.
 
-### Inbound alerting
+## Machine Learning
 
-- **Ingest alerts** from your monitoring into a deduplicated **Alerts inbox** via a token-authenticated endpoint, then promote an alert to a new incident or attach it to an existing one.
-- **Adapters** — **AWS SNS** (CloudWatch alarms natively + EventBridge-via-SNS best-effort, with AWS **signature verification**), **Prometheus Alertmanager** (the kube-prometheus webhook), and a **generic JSON** mapper. Alerts dedupe per source key and track a firing↔resolved lifecycle.
+- Modelo: `RandomForestClassifier` (150 árboles, `max_depth=16`, `min_samples_leaf=5`,
+  `class_weight=balanced_subsample`, `random_state=42`) dentro de un `Pipeline` de scikit-learn 1.6.1.
+- Datos: STATS19, colisiones viales 2025, Department for Transport (Reino Unido), 101 525 registros.
+- 11 variables: `day_of_week`, `hour` (derivadas de fecha y hora), `road_type`, `speed_limit`,
+  `urban_or_rural_area`, `light_conditions`, `weather_conditions`, `road_surface_conditions`,
+  `number_of_vehicles`, `junction_detail`, `first_road_class`.
+- Velocidades admitidas por el modelo: 20, 30, 40, 50, 60 y 70 mph. Otro valor se puede guardar en el
+  accidente, pero el análisis ML se rechaza con un mensaje claro.
 
-### Automation / workflows
+Métricas **documentadas** del notebook (test reservado, 20 305 filas; no se repitió la evaluación):
 
-- **Trigger → conditions → actions rules** (admin-defined) that run automatically on `incident.opened`, `incident.status_changed`, and `alert.received`. Conditions are AND-matched equalities on a fixed field set (severity / type / privacy / system for incidents; source / severity / status for alerts).
-- **Actions** reuse the app's own side-effects: open a Slack channel, assign a role, set status, post a stakeholder update, create a follow-up — and, for inbound alerts, **auto-create an incident** (linking the alert, then running the incident-opened rules). Execution is inline, partial-failure-safe, and recorded on the timeline.
+| Métrica | Valor |
+| --- | --- |
+| Accuracy | 0.5577 |
+| F1 macro | 0.3663 |
+| Balanced accuracy | 0.4618 |
+| ROC-AUC macro OVR | 0.6259 |
 
-### Catalogue & map
+**Limitaciones conocidas.** Fuerte desbalance de clases: *Fatal* es aproximadamente el 1,43 % del
+conjunto. En test, *Fatal* tiene precision 0,05 y recall 0,42 (redondeados): muchos falsos positivos
+y poca capacidad para distinguirla. Los datos son del Reino Unido; su aplicación a otro contexto
+vial no está validada. Detalle y procedencia en [ML_PREDICTION.md](ML_PREDICTION.md),
+[DEMO.md](DEMO.md) y `models/modelo_evaluacion.json`.
 
-- **Systems & Components** — register the Systems you operate and their Components (each in exactly one System), with a two-tier dependency graph (Component→Component within a system, System→System across systems).
-- **Team ownership** — define **Teams** and assign an owning team to each system/component; shown on the catalogue and on the incident detail (who to pull in).
-- **3D service map** — an interactive force-graph of systems/components with **live blast-radius**: open incidents light up the affected nodes and everything that depends on them.
+## Tecnología
 
-### Integrations *(all optional, partial-failure-safe)*
+FastAPI, Jinja2, HTMX, CSS y JavaScript sin paso de compilación, PostgreSQL 16 (SQLAlchemy 2 +
+psycopg 3, migraciones con Alembic), scikit-learn, Leaflet. Decisiones visuales en
+[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md); reglas de trabajo en [AGENTS.md](AGENTS.md).
 
-- **Slack** — connect workspaces via OAuth; declaring an incident auto-opens a channel and posts opened/updated/closed messages.
-- **Video** — pluggable video providers (Google Meet bridge auto-created per incident) via a small provider abstraction.
-- **Outgoing webhooks** — fire on opened/updated/closed/update to **Slack, Microsoft Teams, Discord, or a generic JSON** endpoint.
-- **Inbound alerting** — receive alerts from AWS SNS (CloudWatch), Prometheus Alertmanager, or any system via a generic JSON endpoint (see [Inbound alerting](#inbound-alerting) above).
+## Ejecutar
 
-### Platform
-
-- **Self-hosted, one command up** — FastAPI + HTMX from a single container + Postgres, via Docker Compose.
-- **Auth & RBAC** — local accounts (argon2) **and** generic **OIDC SSO** (Azure Entra / Okta / Google / any OIDC IdP) with domain gating and a local break-glass. Three group-based roles: Admin, Incident Commander, Read-only.
-- **User & group management** — admin UI to invite users (email when SMTP is set, or a generated temp password), organize groups, assign roles.
-- **Encrypted settings** — every integration credential/token is encrypted at rest (Fernet); secrets are never rendered in the UI or written to logs.
-- **The UI** — a focused dark interface (incident.io-inspired): the **Flamingo** accent marks live incidents and primary actions, severity stays a semantic colour, Markdown is rendered safely (sanitized with `nh3`). Left-sidebar nav: Incidents · Systems · Components · Maps · Follow-ups · Postmortems · Alerts · Insights (+ admin Users / Groups / Automations), with the active page highlighted and Settings/Account at the bottom.
-
-All integrations are partial-failure-safe: an incident is always created as a record, integrations run only when configured and applicable (Slack requires selecting a connection per incident; Google Meet uses the globally-configured service account), and a failing integration is surfaced on the incident — never a 500.
-
-## Quick start (Docker Compose)
-
-Requires Docker.
+### Con Docker Compose
 
 ```bash
-git clone https://github.com/giammbo/incident-commander.git
-cd incident-commander
-cp .env.example .env
-```
-
-Generate the two required secrets and put them in `.env`:
-
-```bash
-# SESSION_SECRET
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-# FERNET_KEYS
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Then bring it up:
-
-```bash
+cp .env.example .env     # completa SESSION_SECRET y FERNET_KEYS (comandos en el propio archivo)
 docker compose up --build
 ```
 
-Open <http://localhost:8000>. The **bootstrap admin password is printed once in the app logs**
-on first start — log in as `IC_ADMIN_EMAIL` (default `admin@localhost`) and change it immediately.
+Abre <http://localhost:8000>. La contraseña del administrador inicial se imprime **una vez** en los
+registros (`docker compose logs app | grep "Generated password"`); cámbiala al entrar.
+
+### Sin Docker (PostgreSQL local)
 
 ```bash
-docker compose logs app | grep "Generated password"
+uv sync                                   # Python 3.12
+export DATABASE_URL="postgresql+psycopg://USUARIO:CLAVE@localhost:5432/BASE"
+export SESSION_SECRET="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export FERNET_KEYS="$(uv run python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+export BASE_URL="http://localhost:8000" SESSION_HTTPS_ONLY=false
+uv run alembic upgrade head
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-## Configuration
+En PowerShell usa `$env:NOMBRE = "valor"` en lugar de `export`. `SESSION_HTTPS_ONLY=false` solo
+es adecuado para HTTP local; en producción debe ser `true` detrás de HTTPS.
 
-Bootstrap secrets live in the environment (`.env`). Everything else — Slack / Google / SMTP / **OIDC SSO**
-credentials, and all the catalogues (**severities, statuses, incident types, roles, custom fields, teams,
-systems/components**) — is configured at runtime from the admin **Settings** page (secrets stored encrypted
-in the database).
+### Datos DEMO
 
-| Variable | Purpose | Required | Default |
-|---|---|---|---|
-| `DATABASE_URL` | Postgres connection (`postgresql+psycopg://…`) | yes | built from `POSTGRES_*` in Compose |
-| `SESSION_SECRET` | Signs the session cookie | yes | — (generate it) |
-| `FERNET_KEYS` | Comma-separated Fernet keys for encrypting secrets at rest (first encrypts; the rest enable rotation) | yes | — (generate it) |
-| `BASE_URL` | Public base URL (used for OAuth/OIDC redirects) | yes | `http://localhost:8000` |
-| `IC_ADMIN_EMAIL` | Email of the bootstrap admin | no | `admin@localhost` |
-| `SESSION_HTTPS_ONLY` | Mark the session cookie `Secure` — **set `true` in production behind HTTPS** | no | `true` (Compose ships `false` for localhost) |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Compose Postgres credentials | no | `ic` / `ic` / `incident_commander` |
+Sintéticos y de carga explícita; ver [DEMO.md](DEMO.md).
 
-> `FERNET_KEY` (singular) is accepted as a convenience alias for a single `FERNET_KEYS` value.
-
-### Single sign-on (OIDC)
-
-Works with any OpenID Connect provider (Azure Entra ID, Okta, Google, Auth0, Keycloak, …). In your IdP,
-create an application and register the redirect URI `<BASE_URL>/auth/oidc/callback`. Then in
-**Settings → Single sign-on (OIDC)** set the **Issuer URL**, **Client ID**, **Client secret**, an optional
-button label, and the **allowed email domains** (empty = trust any user from that issuer); tick *Enable SSO*.
-A local-password break-glass remains available so an admin can always sign in. Accounts are matched by the
-issuer + subject claim (no silent account takeover).
-
-### Google Meet (video bridge)
-
-Meets are created via the **Google Meet API** under a **service account with Domain-Wide Delegation
-(DWD)** that impersonates a fixed Workspace user. No per-user OAuth or Calendar events are involved.
-
-1. In **Google Cloud Console** (<https://console.cloud.google.com>), enable the **Google Meet API**
-   and the **Google Drive API**.
-2. Create a **service account**; create and download a **JSON key**. No project IAM roles are
-   needed. Note its numeric **client ID**.
-3. In **Workspace Admin Console → Security → API controls → Domain-wide delegation**, authorize that
-   client ID for the scopes `https://www.googleapis.com/auth/meetings.space.created` and
-   `https://www.googleapis.com/auth/drive.readonly`.
-4. In **Settings → Google**, paste the **JSON key** and an **impersonation user** email — a
-   Workspace user with a **Gemini for Workspace** license. Incidents' Meets are created as this
-   user, and its Drive receives the Gemini notes. Tick *Enabled*, save.
-
-Incident Meets are created via the Meet API with **Gemini smart notes and transcription on by
-default**. No Calendar event is created. Requires a Workspace edition with the Gemini add-on.
-
-(Slack is analogous: create an app at <https://api.slack.com/apps>, register
-`<BASE_URL>/connections/slack/callback`, paste the credentials into **Settings → Slack**, then connect a workspace.)
-
-## Deploy on Kubernetes (Helm)
-
-Released images and the chart are published to GHCR on each `vX.Y.Z` tag.
-
-The chart requires an **external Postgres** — it does not bundle a database.
+## Pruebas y calidad
 
 ```bash
-# 1) Create the app secret (SESSION_SECRET + FERNET_KEYS — never commit real values)
-kubectl create secret generic ic-secrets \
-  --from-literal=SESSION_SECRET="$(python -c 'import secrets;print(secrets.token_urlsafe(48))')" \
-  --from-literal=FERNET_KEYS="$(python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())')"
-
-# 2) Create the DB secret (holding the Postgres password)
-kubectl create secret generic ic-db-secret \
-  --from-literal=password=<your-postgres-password>
-
-# 3) Install
-helm install ic oci://ghcr.io/giammbo/charts/incident-commander --version <X.Y.Z> \
-  --set secrets.existingSecret=ic-secrets \
-  --set externalDatabase.host=<pg-host> \
-  --set externalDatabase.existingSecret=ic-db-secret \
-  --set config.baseUrl=https://incident.example.com \
-  --set ingress.enabled=true --set ingress.host=incident.example.com
+uv run pytest                 # por defecto levanta PostgreSQL con testcontainers (requiere Docker)
+uv run ruff check .
+uv run ruff format --check .
 ```
 
-The bootstrap admin password is printed once in the pod logs:
+Las pruebas usan una PostgreSQL temporal en Docker, separada de la base de trabajo y de DEMO.
+`tests/test_entrypoint.py` ejecuta `docker/entrypoint.sh` dentro de un contenedor y siempre
+requiere Docker. La prueba `tests/test_accident_flow.py` recorre el flujo accidente → ML →
+persistencia → estadísticas → mapa con el modelo real.
 
-```bash
-kubectl logs deploy/ic-incident-commander | grep "Generated password"
-```
+**Migraciones verificadas:** `alembic upgrade head` llega a `0020_incident_predictions`.
+`alembic check` conserva drift del esquema upstream: nulabilidad de timestamps en tablas
+heredadas (incluidos catálogos, roles y seguimiento) y estructura del índice/constraint de
+`inbound_integrations.token`. No afecta las columnas viales ni `incident_predictions`.
+No se modificaron migraciones históricas; esa conciliación queda como mantenimiento separado.
 
-## Development
+## Módulos heredados (SRE)
 
-```bash
-uv sync                 # install deps (Python 3.12)
-cp .env.example .env     # fill SESSION_SECRET and FERNET_KEYS
-uv run pytest            # run the test suite — Docker required (testcontainers spins up Postgres)
-uv run ruff check .      # lint
-uv run ruff format .     # format
-```
+El proyecto parte de un gestor de incidentes de infraestructura (Apache-2.0,
+`giammbo/incident-commander`). Se conservan en el backend, **ocultos en la interfaz vial** y sin
+integrarse al flujo de accidentes: integraciones Slack / Google Meet / webhooks, catálogo de
+sistemas y componentes, alertas entrantes (`/ingest`), automatizaciones y postmortems.
+SSO OIDC se conserva como opción de autenticación: se configura en Administración y aparece
+en Login cuando está habilitado; no pertenece a los módulos ocultos.
+Siguen montados y cubiertos por pruebas; no se retiraron para no romper rutas, permisos ni pruebas.
+Retirarlos exigiría revisar esas dependencias y es una decisión pendiente. El README original se
+conserva en [docs/UPSTREAM_SRE_README.md](docs/UPSTREAM_SRE_README.md).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
+## Seguridad
 
-## Architecture
+Contraseñas con argon2, sesiones firmadas `SameSite=Lax`, protección CSRF por Origin/Referer,
+secretos de configuración cifrados con Fernet. `.env` y `.env.demo` contienen credenciales locales:
+no se versionan, no se incluyen en la imagen Docker y no deben compartirse. Ver [SECURITY.md](SECURITY.md).
 
-A single server-rendered FastAPI service: Jinja2 templates with HTMX (no JavaScript build step),
-sync SQLAlchemy 2.0 + psycopg3 against Postgres, Alembic migrations applied on startup. Configurable
-catalogues (severities, statuses, types, roles, custom fields, teams) follow one consistent pattern;
-the timeline auto-captures lifecycle events; integrations (Slack, video providers, outgoing webhooks)
-sit behind small abstractions and are partial-failure-safe. Secrets are encrypted at rest with Fernet;
-bootstrap secrets come from the environment. Markdown is rendered with `markdown` and sanitized with `nh3`.
+## Licencia
 
-## Roadmap
-
-- **Core platform** — local auth + group RBAC, generic OIDC SSO, SMTP email invites ✅
-- **Integrations** — Slack channels, Google Meet bridge (via a video-provider abstraction), outgoing webhooks (Slack/Teams/Discord/generic) ✅
-- **Incident process** — configurable severities, statuses (with categories), incident types, roles & assignees, timeline (auto events + notes), follow-ups / action items, custom fields, stakeholder updates, postmortems ✅
-- **Catalogue** — systems & components with a two-tier dependency graph, team ownership, and a live 3D blast-radius map ✅
-- **Insights & alerting** — insights/analytics (MTTR, breakdowns, trends) and inbound alerting (AWS CloudWatch/SNS, Prometheus Alertmanager, generic) into an Alerts inbox with promotion to incidents ✅
-- **Automation** — a trigger → conditions → actions workflow engine (incident-opened / status-changed / alert-received), with alert→incident auto-creation ✅
-- **Next** — public status page, on-call/paging, a native Slack/Teams bot, and a public API.
-
-## Security
-
-Integration credentials and tokens are encrypted at rest (Fernet), passwords are hashed with
-argon2, and sessions use a signed `SameSite=Lax` cookie. State-changing requests are protected
-against **CSRF** by an Origin/Referer check (the inbound `/ingest` endpoint is exempt — it is
-authenticated by its own secret token). Please report vulnerabilities privately — see
-[SECURITY.md](SECURITY.md). Run behind HTTPS with `SESSION_HTTPS_ONLY=true` in production.
-
-**Behind a reverse proxy:** set `BASE_URL` to the public origin **and** forward the original `Host`
-header, so the CSRF check's allowed-origin set matches the browser's real origin. For the public
-`/ingest` endpoint, also consider a proxy-level rate limit (the app caps each request body at 256 KB).
-
-## Contributing
-
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and our
-[Code of Conduct](CODE_OF_CONDUCT.md).
-
-## License
-
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-
-Dependencies are permissively licensed (MIT / BSD / Apache-2.0), with one exception: the Postgres
-driver [`psycopg`](https://www.psycopg.org/) is LGPL-3.0. It is used as an unmodified, separately
-installed library, which is compatible with shipping this project under Apache-2.0; its LGPL notice
-is retained.
+Apache License 2.0; ver [LICENSE](LICENSE) y [NOTICE](NOTICE). Se conserva la atribución al proyecto
+original.

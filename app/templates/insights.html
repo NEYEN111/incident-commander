@@ -1,60 +1,154 @@
 {% extends "base.html" %}
+{% block title %}Estadísticas · {{ app_name }}{% endblock %}
+{% block page_surface %}insights-surface{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="/static/road-analytics.css">
+<link rel="stylesheet" href="/static/road-analytics.css?v=3">
 <div class="road-analytics">
-  <div class="page-head">
-    <h1>Análisis vial</h1>
-    <nav class="range" aria-label="Período de análisis">
+  {% macro percentage(value) %}{{ ('%.1f' | format(value)).replace('.', ',') }} %{% endmacro %}
+  <header class="analytics-header">
+    <div>
+      <h1>Estadísticas</h1>
+      <p>Resumen de accidentes y resultados del análisis de gravedad con Machine Learning.</p>
+    </div>
+    <nav class="analytics-range" aria-label="Período de análisis">
       {% for d, lbl in [(30, "30 días"), (90, "90 días"), (0, "Todo")] %}
       <a href="/insights?days={{ d }}"{% if d == days %} class="active" aria-current="page"{% endif %}>{{ lbl }}</a>
       {% endfor %}
     </nav>
-  </div>
-  <p class="page-sub">Accidentes por fecha del accidente y última predicción ML. Las predicciones no representan la prioridad operativa.</p>
-  {% if data.since %}
-  <p class="muted">Del {{ data.since.strftime('%d/%m/%Y') }} al {{ data.until.strftime('%d/%m/%Y') }} (ambos inclusive, calendario UTC).</p>
-  {% endif %}
-  <div class="analytics-kpis">
-    {% for label, value in [("Total de accidentes", data.total), ("Accidentes con predicción ML", data.with_prediction), ("Accidentes sin predicción ML", data.without_prediction), ("Accidentes con ubicación geográfica", data.with_coordinates)] %}
-    <div class="card kpi">
-      <div class="kpi-label">{{ label }}</div>
-      <div class="kpi-value">{{ value }}</div>
-    </div>
-    {% endfor %}
-  </div>
-  <p class="muted">{{ data.undated }} accidentes sin fecha{% if days %}, contabilizados aparte y excluidos del período{% else %}, incluidos en el total y excluidos de los gráficos por fecha{% endif %}. {{ data.without_time }} accidentes del período sin hora.</p>
+  </header>
+  <p class="analytics-period">{% if data.since %}Del {{ data.since.strftime('%d/%m/%Y') }} al {{ data.until.strftime('%d/%m/%Y') }} · Fechas inclusive, calendario UTC.{% else %}Todo el historial registrado.{% endif %} El período se aplica a la fecha del accidente.</p>
 
-  {% macro chart(title, rows, note='', scroll=false) %}
-  <section class="card analytics-chart">
-    <h2>{{ title }}</h2>
-    {% if note %}<p class="muted">{{ note }}</p>{% endif %}
-    <div{% if scroll %} class="analytics-scroll" tabindex="0" role="region" aria-label="{{ title }}"{% endif %}>
-      <ul class="analytics-bars">
+  <dl class="analytics-summary" aria-label="Resumen del período">
+    {% for key, label, value in [("total", "Total de accidentes", data.total), ("analyzed", "Analizados con ML", data.with_prediction), ("pending", "Pendientes de análisis", data.without_prediction), ("located", "Con ubicación geográfica", data.with_coordinates)] %}
+    <div><dt>{{ label }}</dt><dd data-metric="{{ key }}">{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% if data.total == 0 %}<p class="analytics-empty">{% if days %}No hay accidentes en este período. Puedes consultar Todo para ver el historial completo.{% else %}Todavía no hay accidentes registrados.{% endif %}</p>{% endif %}
+
+  <section class="analytics-distribution" aria-labelledby="distribution-title">
+    <div class="analytics-section-head">
+      <div><h2 id="distribution-title">Distribución de gravedad estimada</h2>
+        <p>Última predicción de cada accidente; cada registro cuenta una sola vez.</p></div>
+      <p class="analytics-denominator">{{ data.with_prediction }} accidentes analizados</p>
+    </div>
+    {% if data.with_prediction %}
+    <ul class="analytics-ml-bars">
+      {% for row in data.prediction_distribution %}
+      <li class="ml-{{ row.label | lower }}" data-ml-class="{{ row.label }}">
+        <span class="analytics-class">{{ row.label }}</span>
+        <span class="analytics-ml-track" aria-hidden="true"><span style="width: {{ row.percentage }}%"></span></span>
+        <span class="analytics-ml-count">{{ row.count }} <span>{{ 'accidente' if row.count == 1 else 'accidentes' }}</span></span>
+        <strong>{{ percentage(row.percentage) }}</strong>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="analytics-note">Porcentajes sobre los {{ data.with_prediction }} accidentes analizados del período. Escala de barras: 0–100 %.</p>
+    {% else %}
+    <p class="analytics-empty">Aún no hay suficientes predicciones para mostrar la distribución.</p>
+    {% endif %}
+    <p class="analytics-separation">La predicción del modelo es independiente de la prioridad operativa. Fatal / Grave / Leve son categorías estimadas por ML; SEV1 / SEV2 / SEV3 expresan prioridad operativa.</p>
+  </section>
+
+  <section class="analytics-section analytics-evolution" aria-labelledby="evolution-title">
+    <div class="analytics-section-head">
+      <div><h2 id="evolution-title">Evolución de accidentes</h2>
+        <p>Por fecha del accidente · {{ data.timeline.granularity | lower }}. Los intervalos sin registros se muestran con cero.</p></div>
+    </div>
+    {% if data.timeline.dated_total %}
+    <ul class="analytics-legend" aria-label="Series de evolución">
+      <li><span class="analytics-legend-total" aria-hidden="true"></span>Total de accidentes: {{ data.timeline.dated_total }}</li>
+      <li><span class="analytics-legend-predicted" aria-hidden="true"></span>Con predicción ML: {{ data.timeline.predicted_total }}</li>
+    </ul>
+    {% if data.timeline.rows | length >= 4 %}
+    <svg class="analytics-timeline" viewBox="0 0 800 220" role="img" aria-labelledby="timeline-title timeline-description">
+      <title id="timeline-title">Accidentes por fecha: total y con predicción ML</title>
+      <desc id="timeline-description">{{ data.timeline.dated_total }} accidentes con fecha, de los cuales {{ data.timeline.predicted_total }} tienen predicción. Ambas series comparten escala. Los valores de cada intervalo están disponibles en la tabla siguiente.</desc>
+      {% for tick in data.timeline.ticks %}
+      <line class="analytics-gridline" x1="52" y1="{{ tick.y }}" x2="780" y2="{{ tick.y }}" />
+      <text x="40" y="{{ tick.y + 5 }}" text-anchor="end">{{ tick.count }}</text>
+      {% endfor %}
+      <polyline class="analytics-total-line" points="{{ data.timeline.total_points }}" />
+      <polyline class="analytics-predicted-line" points="{{ data.timeline.predicted_points }}" />
+      <text x="52" y="212">{{ data.timeline.rows[0].label }}</text>
+      <text x="780" y="212" text-anchor="end">{{ data.timeline.rows[-1].label }}</text>
+    </svg>
+    {% endif %}
+    <details class="analytics-data"{% if data.timeline.rows | length < 4 %} open{% endif %}>
+      <summary>Ver cantidades por {{ 'mes' if data.timeline.granularity == 'Mensual' else 'fecha' }}</summary>
+      <div class="analytics-table-scroll" tabindex="0" role="region" aria-label="Cantidades por fecha">
+        <table><caption>Accidentes por fecha y disponibilidad de predicción</caption>
+          <thead><tr><th scope="col">{{ 'Mes' if data.timeline.granularity == 'Mensual' else 'Fecha' }}</th><th scope="col">Total</th><th scope="col">Con predicción ML</th></tr></thead>
+          <tbody>{% for row in data.timeline.rows %}<tr><th scope="row">{{ row.label }}</th><td>{{ row.count }}</td><td>{{ row.predicted_count }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </details>
+    <p class="analytics-note">«Con predicción ML» indica que el accidente tiene un resultado guardado; no es la fecha en que se ejecutó el análisis.</p>
+    {% else %}<p class="analytics-empty">No hay accidentes con fecha en este período para mostrar la evolución.</p>{% endif %}
+    <p class="analytics-note">{{ data.undated }} accidentes sin fecha{% if days %}, contabilizados aparte y excluidos del período{% else %}, incluidos en el total y excluidos de los gráficos por fecha{% endif %}. {{ data.without_time }} accidentes del período sin hora.</p>
+  </section>
+
+  <section class="analytics-section analytics-model" aria-labelledby="model-title">
+    <div><h2 id="model-title">Modelo de Machine Learning</h2><p>Información del modelo guardado en el proyecto.</p></div>
+    <div>
+      {% if model_info %}
+      <dl class="analytics-model-facts">
+        {% if model_info.get('algoritmo') %}<div><dt>Algoritmo</dt><dd>{{ 'Random Forest' if model_info.algoritmo == 'RandomForestClassifier' else model_info.algoritmo }}</dd></div>{% endif %}
+        {% if model_info.get('version') %}<div><dt>Versión</dt><dd>{{ model_info.version }}</dd></div>{% endif %}
+        {% if model_info.get('clases') %}<div><dt>Clases estimadas</dt><dd>{{ model_info.clases | join(' / ') }}</dd></div>{% endif %}
+        {% if model_info.get('variables') %}<div><dt>Variables utilizadas</dt><dd>{{ model_info.variables | length }}</dd></div>{% endif %}
+        {% if model_info.get('parametros', {}).get('n_estimators') %}<div><dt>Árboles</dt><dd>{{ model_info.parametros.n_estimators }}</dd></div>{% endif %}
+      </dl>
+      <p class="analytics-note">Variables: {{ model_info.get('variables', []) | join(', ') }}. Día de la semana y hora se derivan automáticamente de la fecha y hora del accidente.</p>
+      <p class="analytics-note">Parámetros finales: {% for name, value in model_info.get('parametros', {}).items() %}{{ name }}={{ value }}{{ '; ' if not loop.last else '.' }}{% endfor %} Fuente: models/modelo_info.json.</p>
+      {% else %}<p class="analytics-empty">Los metadatos del modelo no están disponibles. Esto no indica ausencia de predicciones guardadas.</p>{% endif %}
+      {% if model_evaluation %}
+      <h3>Evaluación del modelo entrenado</h3>
+      <p class="analytics-note">Dataset: <a href="{{ model_evaluation.dataset_url }}">{{ model_evaluation.dataset }}</a>. {{ model_evaluation.rows }} registros; {{ model_evaluation.train_rows }} para entrenamiento y {{ model_evaluation.test_rows }} para test.</p>
+      <p class="analytics-note">{{ model_evaluation.evaluation }}</p>
+      <dl class="analytics-model-facts">
+        {% for key, label in [('accuracy', 'Accuracy'), ('f1_macro', 'F1 macro'), ('balanced_accuracy', 'Balanced accuracy'), ('roc_auc_macro_ovr', 'ROC-AUC macro OVR')] %}
+        <div><dt>{{ label }}</dt><dd>{{ ('%.4f' | format(model_evaluation.metrics[key])).replace('.', ',') }}</dd></div>
+        {% endfor %}
+      </dl>
+      <details class="analytics-data">
+        <summary>Ver evaluación por clase</summary>
+        <div class="analytics-table-scroll" role="region" aria-label="Evaluación por clase" tabindex="0">
+          <table><caption>Resultados de test; precision, recall y F1 redondeados como en el notebook.</caption>
+            <thead><tr><th scope="col">Clase</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1</th><th scope="col">Registros</th></tr></thead>
+            <tbody>{% for row in model_evaluation.class_report_rounded %}<tr><th scope="row">{{ row.label }}</th><td>{{ row.precision }}</td><td>{{ row.recall }}</td><td>{{ row.f1 }}</td><td>{{ row.support }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </details>
+      <p class="analytics-note">{{ model_evaluation.limitation }}</p>
+      <p class="analytics-note">Fuente: {{ model_evaluation.source }}, celda {{ model_evaluation.source_cell }} (índice desde cero). {{ model_evaluation.scope }} Estos resultados de evaluación no son las estadísticas de los accidentes registrados en la aplicación.</p>
+      {% else %}<p class="analytics-note">No está disponible la evaluación documentada del modelo.</p>{% endif %}
+    </div>
+  </section>
+
+  {% macro context_chart(title, rows, note='', scroll=false) %}
+  <section class="analytics-context-chart">
+    <h3>{{ title }}</h3>
+    {% if note %}<p class="analytics-note">{{ note }}</p>{% endif %}
+    <div{% if scroll %} class="analytics-context-scroll" tabindex="0" role="region" aria-label="{{ title }}"{% endif %}>
+      <ul class="analytics-context-bars">
         {% for row in rows %}
-        <li>
-          <span class="analytics-label">{{ row.label }}</span>
-          <span class="bar" aria-hidden="true"><span class="bar-fill" style="width:{{ row.width }}%"></span></span>
-          <span class="analytics-count"><b>{{ row.count }}</b> <span class="muted">({{ row.percentage }}%)</span></span>
-        </li>
+        <li><span>{{ row.label }}</span><span class="analytics-context-track" aria-hidden="true"><span style="width: {{ row.width }}%"></span></span><span>{{ row.count }} · {{ percentage(row.percentage) }}</span></li>
         {% endfor %}
       </ul>
     </div>
   </section>
   {% endmacro %}
-
-  {% if data.total == 0 %}
-  <div class="empty">No hay accidentes en este período.</div>
-  {% else %}
-  <div class="analytics-grid">
-    {{ chart("Última predicción ML por accidente", data.prediction_distribution, "Porcentajes sobre accidentes con predicción; cada accidente cuenta una sola vez.") }}
-    {{ chart("Calidad y completitud de datos", data.quality, "Porcentajes sobre el total del período. Los 11 datos incluyen fecha y hora, y deben ser compatibles con PredictionRequest; no se ejecuta el modelo.") }}
-    {% for distribution in data.road_distributions %}
-      {{ chart(distribution.title, distribution.rows, "Porcentajes sobre el total del período. Sin datos se contabiliza aparte de las categorías conocidas.") }}
-    {% endfor %}
-    {{ chart("Accidentes por día de la semana", data.weekdays, "Solo accidentes con fecha; orden STATS19 de domingo a sábado.") }}
-    {{ chart("Accidentes por hora del día", data.hours, "Solo accidentes con hora registrada.", true) }}
-    {{ chart("Evolución de accidentes · " ~ data.timeline.granularity, data.timeline.rows, "Solo accidentes con fecha. Los intervalos sin accidentes muestran cero.", true) }}
-  </div>
-  {% endif %}
+  <details class="analytics-context">
+    <summary>Contexto vial y completitud de datos</summary>
+    {% if data.total %}
+    <p class="analytics-note">Desgloses del período. Barras relativas al máximo de cada gráfico; cantidades y porcentajes muestran los valores reales.</p>
+    <div class="analytics-context-grid">
+      {{ context_chart("Calidad y completitud de datos", data.quality, "Porcentajes sobre el total. Los 11 datos deben ser compatibles con ML; aquí no se ejecuta el modelo.") }}
+      {% for distribution in data.road_distributions %}{{ context_chart(distribution.title, distribution.rows, "Porcentajes sobre el total. Sin datos se distingue de las categorías conocidas.") }}{% endfor %}
+      {{ context_chart("Accidentes por día de la semana", data.weekdays, "Solo registros con fecha; orden de domingo a sábado.") }}
+      {{ context_chart("Accidentes por hora del día", data.hours, "Solo registros con hora.", true) }}
+    </div>
+    {% else %}<p class="analytics-empty">No hay accidentes en este período para mostrar los desgloses.</p>{% endif %}
+  </details>
 </div>
 {% endblock %}

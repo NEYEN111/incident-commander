@@ -71,9 +71,15 @@ def test_road_fields_round_trip_create_edit_detail_and_list(client, db_session):
     detail = client.get(f"/incidents/{incident.id}").text
     assert 'value="2026-09-30"' in detail and 'value="14:30"' in detail
     assert "Mojada/húmeda" in detail and "Lluvia sin viento fuerte" in detail
-    assert "<dt>Número de vehículos</dt><dd>2</dd>" in detail
-    assert "<dt>Detalle de la intersección</dt><dd>Intersección en T o escalonada</dd>" in detail
-    assert "<dt>Clase de la primera vía</dt><dd>Carretera A</dd>" in detail
+    assert 'value="2"' in detail.split('id="ml-number_of_vehicles"', 1)[1].split(">", 1)[0]
+    assert (
+        'value="13" selected'
+        in detail.split('name="junction_detail"', 1)[1].split("</select>", 1)[0]
+    )
+    assert (
+        'value="3" selected'
+        in detail.split('name="first_road_class"', 1)[1].split("</select>", 1)[0]
+    )
     response = client.post(
         f"/incidents/{incident.id}/edit",
         data={
@@ -97,9 +103,15 @@ def test_road_fields_round_trip_create_edit_detail_and_list(client, db_session):
     assert incident.junction_detail == 16 and incident.first_road_class == 6
     assert "Rotonda" in client.get(f"/incidents/{incident.id}").text
     detail = client.get(f"/incidents/{incident.id}").text
-    assert "<dt>Número de vehículos</dt><dd>17</dd>" in detail
-    assert "<dt>Detalle de la intersección</dt><dd>Cruce de vías</dd>" in detail
-    assert "<dt>Clase de la primera vía</dt><dd>Sin clasificar</dd>" in detail
+    assert 'value="17"' in detail.split('id="ml-number_of_vehicles"', 1)[1].split(">", 1)[0]
+    assert (
+        'value="16" selected'
+        in detail.split('name="junction_detail"', 1)[1].split("</select>", 1)[0]
+    )
+    assert (
+        'value="6" selected'
+        in detail.split('name="first_road_class"', 1)[1].split("</select>", 1)[0]
+    )
 
 
 def test_edit_omitted_fields_preserves_road_and_hidden_legacy_data(client, db_session):
@@ -135,8 +147,12 @@ def test_unknown_and_absent_data_are_not_guessed(client, db_session):
     assert "Desconocido" in client.get(f"/incidents/{incident.id}").text
     for key in ("number_of_vehicles", "junction_detail", "first_road_class"):
         assert getattr(incident, key) is None
-        label = ROAD_FIELDS[key]["label"]
-        assert f"<dt>{label}</dt><dd>Sin datos</dd>" in client.get(f"/incidents/{incident.id}").text
+        html = client.get(f"/incidents/{incident.id}").text
+        if key == "number_of_vehicles":
+            assert 'value=""' in html.split(f'id="ml-{key}"', 1)[1].split(">", 1)[0]
+        else:
+            options = html.split(f'name="{key}"', 1)[1].split("</select>", 1)[0]
+            assert '<option value="">Sin datos</option>' in options and " selected" not in options
     response = client.post(
         f"/incidents/{incident.id}/edit",
         data={"title": "Registro antiguo editado", "severity_level_id": incident.severity_level_id},
@@ -246,8 +262,10 @@ def test_main_interface_is_spanish_and_technical_modules_hidden(client):
     assert "Iniciar sesión" in login and "Sistema de Gestión de Accidentes Viales" in login
     home = client.get("/").text
     assert "Registrar accidente" in home and 'lang="es"' in home
-    for field in ROAD_FIELDS:
+    for field in ["date", "time", "latitude", "longitude"]:
         assert f'name="{field}"' in home
+    for field in ROAD_FIELDS.keys() - {"date", "time", "latitude", "longitude"}:
+        assert f'name="{field}"' not in home
     for field in ["system_id", "component_ids", "slack_connection_id", "video", "incident_type_id"]:
         assert f'name="{field}"' not in home
     assert 'href="/maps"' in home

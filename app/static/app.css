@@ -179,6 +179,267 @@ select { appearance: none; padding-right: 30px;
 }
 label { color: var(--ink-2); }
 
+/* Approved light shell and login; legacy page surfaces remain scoped separately. */
+.pilot-shell, .pilot-login {
+  --pilot-bg: #F5F6F8;
+  --pilot-surface: #FFFFFF;
+  --pilot-text: #171A1F;
+  --pilot-secondary: #5B6472;
+  --pilot-border: #DDE2E8;
+  --pilot-control-border: #7C8796;
+  --pilot-action: #175CD3;
+  --pilot-action-hover: #1849A9;
+  --pilot-selected: #EFF4FF;
+  --pilot-hover: #EEF2F6;
+  background: var(--pilot-bg);
+  color-scheme: light;
+}
+.pilot-skip {
+  position: fixed; top: 8px; left: 16px; z-index: 20;
+  transform: translateY(-200%); padding: 12px 16px; border-radius: 8px;
+  background: #FFFFFF; color: #175CD3; font: 500 16px/24px var(--font-sans);
+}
+.pilot-skip:focus { transform: none; color: #175CD3; outline: 2px solid #175CD3; outline-offset: 2px; }
+.pilot-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
+.pilot-sidebar {
+  position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+  padding: 24px 16px; background: var(--pilot-surface);
+  border-right: 1px solid var(--pilot-border); color: var(--pilot-text);
+  font: 400 15px/24px var(--font-sans);
+}
+.pilot-brand {
+  display: flex; align-items: center; min-height: 44px; padding: 0 8px;
+  color: var(--pilot-text); font: 600 16px/24px var(--font-sans);
+  overflow-wrap: anywhere;
+}
+.pilot-brand:hover { color: var(--pilot-text); }
+.pilot-sidebar .pilot-brand { padding: 0 12px; }
+.pilot-brand-copy { display: flex; flex-direction: column; gap: 4px; }
+.pilot-brand-context { color: var(--pilot-secondary); font: 400 15px/24px var(--font-sans); }
+.pilot-nav { display: flex; flex-direction: column; gap: 4px; }
+.pilot-nav a, .pilot-account a {
+  position: relative; display: flex; align-items: center; min-height: 44px;
+  padding: 8px 12px; border-radius: 8px; color: var(--pilot-secondary);
+  overflow-wrap: anywhere; transition: background-color 120ms, color 120ms;
+}
+.pilot-nav a:hover, .pilot-account a:hover { background: var(--pilot-hover); color: var(--pilot-text); }
+.pilot-nav a.active, .pilot-account a.active {
+  background: var(--pilot-selected); color: var(--pilot-action); font-weight: 600;
+}
+.pilot-nav a.active::before, .pilot-account a.active::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px;
+  width: 3px; background: currentColor; border-radius: 4px;
+}
+.pilot-admin { border-top: 1px solid var(--pilot-border); padding-top: 20px; }
+.pilot-group-title { margin: 0 12px 8px; color: var(--pilot-secondary); font: 500 15px/24px var(--font-sans); }
+.pilot-account { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--pilot-border); }
+.pilot-email { padding: 0 12px 8px; color: var(--pilot-secondary); font: 400 15px/24px var(--font-sans); overflow-wrap: anywhere; }
+.pilot-header { display: none; }
+.main.pilot-main { min-width: 0; width: 100%; max-width: 1264px; padding: 32px 32px 64px; }
+.pilot-legacy-content {
+  min-width: 0; padding: 24px; border-radius: 12px;
+  background: var(--bg); color: var(--ink); color-scheme: dark;
+}
+.pilot-sidebar :focus-visible, .pilot-header :focus-visible,
+.pilot-login :focus-visible, .pilot-main:focus-visible {
+  outline: 2px solid var(--pilot-action); outline-offset: 2px;
+}
+.pilot-login { color: var(--pilot-text); font: 400 15px/24px var(--font-sans); }
+.pilot-login .main-plain { max-width: none; padding: 0; }
+.pilot-auth {
+  display: grid; place-items: center; min-height: 100vh; min-height: 100dvh;
+  padding: 32px;
+}
+.pilot-auth-card {
+  width: 100%; max-width: 400px; padding: 24px;
+  background: var(--pilot-surface); border: 1px solid var(--pilot-border); border-radius: 12px;
+}
+.pilot-auth-brand { margin-bottom: 24px; color: var(--pilot-secondary); font: 500 15px/24px var(--font-sans); }
+.pilot-login .pilot-auth-card h1 { margin: 0 0 24px; color: var(--pilot-text); font: 600 28px/36px var(--font-sans); letter-spacing: normal; }
+.pilot-login-form { display: flex; flex-direction: column; }
+.pilot-login-form label { margin-bottom: 8px; color: var(--pilot-text); }
+.pilot-login-form input {
+  min-width: 0; width: 100%; min-height: 44px; margin-bottom: 16px; padding: 9px 12px;
+  background: var(--pilot-surface); color: var(--pilot-text);
+  border: 1px solid var(--pilot-control-border); border-radius: 8px;
+  font: 400 16px/24px var(--font-sans); transition: border-color 120ms;
+}
+.pilot-login-form input:hover { border-color: var(--pilot-secondary); }
+.pilot-login-form input:focus { border-color: var(--pilot-action); box-shadow: none; }
+.pilot-login-form input:focus-visible { outline: 2px solid var(--pilot-action); outline-offset: 2px; }
+.pilot-login-submit, .pilot-sso-link {
+  display: flex; align-items: center; justify-content: center; min-height: 44px; width: 100%;
+  padding: 9px 16px; border: 1px solid var(--pilot-action); border-radius: 8px;
+  font: 500 16px/24px var(--font-sans); text-align: center; overflow-wrap: anywhere;
+  cursor: pointer; transition: background-color 120ms, border-color 120ms;
+}
+.pilot-login-submit { margin-top: 8px; background: var(--pilot-action); color: #FFFFFF; }
+.pilot-login-submit:hover, .pilot-login-submit:active { background: var(--pilot-action-hover); border-color: var(--pilot-action-hover); }
+.pilot-login-submit:focus-visible { outline: 2px solid var(--pilot-action); outline-offset: 2px; box-shadow: 0 0 0 2px #FFFFFF; }
+.pilot-sso { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--pilot-border); }
+.pilot-sso-link { background: var(--pilot-surface); border-color: var(--pilot-control-border); color: var(--pilot-text); }
+.pilot-sso-link:hover { background: var(--pilot-hover); color: var(--pilot-text); }
+.pilot-login-error { margin-bottom: 24px; padding: 12px; border: 1px solid #B42318; border-radius: 8px; background: #FEF3F2; color: #B42318; }
+.pilot-login .notice { margin: 16px auto 0; max-width: 400px; background: #ECFDF3; border-color: #067647; color: #067647; }
+@media (max-width: 1023px) {
+  .pilot-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .pilot-sidebar { display: none; }
+  .pilot-header {
+    position: relative; display: block; min-height: 56px; padding: 12px 24px;
+    background: var(--pilot-surface); border-bottom: 1px solid var(--pilot-border);
+    color: var(--pilot-text); font: 400 15px/24px var(--font-sans);
+  }
+  .pilot-header > .pilot-brand { padding: 0; margin-right: 96px; font-size: 14px; line-height: 20px; }
+  .pilot-menu summary {
+    position: absolute; top: 12px; right: 24px; min-height: 44px; min-width: 72px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 12px; border: 1px solid var(--pilot-control-border); border-radius: 8px;
+    cursor: pointer; list-style: none; font: 500 16px/24px var(--font-sans);
+  }
+  .pilot-menu summary::-webkit-details-marker { display: none; }
+  .pilot-menu summary:hover { background: var(--pilot-hover); }
+  .pilot-menu[open] summary { background: var(--pilot-selected); color: var(--pilot-action); }
+  .pilot-menu-content { display: flex; flex-direction: column; gap: 24px; padding-top: 24px; }
+  .main.pilot-main { padding: 24px 24px 48px; }
+}
+@media (max-width: 767px) {
+  .pilot-header { padding: 12px 16px; }
+  .pilot-menu summary { right: 16px; }
+  .main.pilot-main { padding: 16px 16px 32px; }
+  .pilot-legacy-content { padding: 16px; }
+  .pilot-auth { padding: 16px; }
+  .pilot-auth-card { padding: 16px; }
+  .pilot-login .pilot-auth-card h1 { font-size: 24px; line-height: 32px; }
+}
+
+/* Accident registration pilot: project tokens apply only to this page. */
+.accident-page {
+  --bg: #F5F6F8; --surface: #FFFFFF; --surface-2: #FFFFFF;
+  --ink: #171A1F; --ink-2: #5B6472; --ink-3: #667085;
+  --line: #DDE2E8; --line-soft: #DDE2E8;
+  --accent: #175CD3; --accent-hover: #1849A9; --accent-soft: #EFF4FF;
+  --font-serif: var(--font-sans); --font-mono: var(--font-sans);
+  min-width: 0; max-width: 880px; margin-inline: auto; color: var(--ink); font: 400 15px/24px var(--font-sans);
+  color-scheme: light;
+}
+.accident-page h1, .accident-page h2, .accident-page h3, .accident-page h4 {
+  margin: 0; font-family: var(--font-sans); color: var(--ink); letter-spacing: normal;
+}
+.accident-heading { margin-bottom: 24px; }
+.accident-heading h1 { font-size: 28px; line-height: 36px; font-weight: 600; }
+.accident-heading p { margin: 8px 0 0; color: var(--ink-2); }
+.accident-heading .accident-count { margin-top: 8px; font-size: 15px; line-height: 24px; font-variant-numeric: tabular-nums; }
+.accident-count b { color: var(--ink); font-weight: 500; }
+.accident-registration { max-width: 880px; padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.accident-registration > summary { min-height: 44px; cursor: pointer; color: var(--accent); font-size: 16px; line-height: 44px; font-weight: 600; }
+.accident-registration:not([open]) { padding: 0 24px; }
+.accident-page h2 { font-size: 20px; line-height: 28px; font-weight: 600; }
+.accident-create { margin-top: 24px; }
+.accident-identification { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.accident-description { grid-column: 1 / -1; }
+.accident-page .field-block { min-width: 0; display: flex; flex-direction: column; gap: 8px; margin: 0; color: var(--ink); font-size: 15px; line-height: 24px; }
+.accident-page .field-block > span { margin: 0; color: var(--ink); font-size: 15px; line-height: 24px; }
+.accident-page input:not([type="checkbox"]):not([type="radio"]), .accident-page select, .accident-page textarea {
+  width: 100%; min-width: 0; min-height: 44px; padding: 9px 12px;
+  background: #FFFFFF; color: var(--ink); border: 1px solid #7C8796; border-radius: 8px;
+  font: 400 16px/24px var(--font-sans); box-shadow: none; transition: border-color 120ms;
+}
+.accident-page select { appearance: auto; }
+.accident-page textarea { min-height: 80px; }
+.accident-page input:hover, .accident-page select:hover, .accident-page textarea:hover { border-color: #5B6472; }
+.accident-page input:focus, .accident-page select:focus, .accident-page textarea:focus { border-color: #175CD3; box-shadow: none; }
+.accident-page :focus-visible { outline: 2px solid #175CD3; outline-offset: 2px; }
+.accident-data { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.accident-page h3 { font-size: 20px; line-height: 28px; font-weight: 600; }
+.accident-help { margin: 8px 0 24px; max-width: 72ch; color: var(--ink-2); font-size: 15px; line-height: 24px; }
+.accident-data .road-fields { margin: 0 0 24px; padding: 0; border: 0; background: none; }
+.accident-data .road-fields:last-child { margin-bottom: 0; }
+.accident-data h4.section-title { margin: 0 0 16px; font-size: 15px; line-height: 24px; font-weight: 600; text-transform: none; letter-spacing: normal; }
+.accident-data .road-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.accident-data .accident-location .road-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.accident-location .field-block { grid-column: span 2; }
+.accident-location .field-block:nth-last-child(-n+2) { grid-column: span 3; }
+.accident-submit { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.accident-page .btn { min-height: 44px; padding: 9px 16px; font: 500 16px/24px var(--font-sans); box-shadow: none; transition: background-color 120ms, border-color 120ms; }
+.accident-page .btn:active { transform: none; }
+.accident-page .btn-primary { background: #175CD3; border-color: #175CD3; color: #FFFFFF; }
+.accident-page .btn-primary:hover { background: #1849A9; border-color: #1849A9; }
+.accident-submit .check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ink-2); cursor: pointer; }
+.accident-submit .check input { width: 18px; height: 18px; margin: 0; accent-color: #175CD3; }
+.accident-records { margin-top: 32px; }
+.accident-records h2 { margin-bottom: 16px; }
+.accident-page .incident-list { display: block; border: 1px solid var(--line); border-radius: 12px; background: #FFFFFF; overflow: visible; }
+.accident-page .incident { display: grid; grid-template-columns: minmax(0, 1fr) 128px 80px; align-items: center; gap: 16px; padding: 12px 24px; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; animation: none; }
+.accident-page .incident + .incident { border-top: 1px solid var(--line); }
+.accident-page .incident:hover { background: #F8FAFC; transform: none; }
+.accident-page .incident[data-status] { box-shadow: none; opacity: 1; }
+.accident-page .incident::before, .accident-page .incident::after { display: none; }
+.accident-page .inc-main { min-width: 0; }
+.accident-page .inc-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; font: 600 16px/24px var(--font-sans); color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.accident-page .inc-title:hover { color: #175CD3; text-decoration: underline; }
+.accident-page .inc-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 0; color: var(--ink-2); font: 400 15px/24px var(--font-sans); }
+.accident-page .inc-meta > span:nth-child(2) { font-variant-numeric: tabular-nums; }
+.accident-page .inc-meta .inc-ml { color: var(--ml-color, var(--ink-2)); font-weight: 500; }
+.accident-page .chip, .accident-page .lock { padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink-2); font: inherit; }
+.accident-page .status { padding: 0; border: 0; background: none; color: var(--ink-2); font: 400 15px/24px var(--font-sans); white-space: normal; overflow-wrap: anywhere; }
+.accident-page .status .dot { background: #667085; box-shadow: none; animation: none; }
+.accident-page .status[data-status] { color: var(--ink-2); background: none; border: 0; }
+.accident-page .status[data-status] .dot { background: #667085; box-shadow: none; animation: none; }
+.accident-page .row-actions .btn { background: #FFFFFF; border-color: #7C8796; color: var(--ink-2); font-size: 15px; }
+.accident-page .row-actions { justify-self: end; }
+.accident-page .row-actions .btn:hover { background: #EEF2F6; border-color: #5B6472; color: var(--ink); }
+.accident-page .empty { padding: 32px 24px; border: 0; background: none; color: var(--ink-2); font: 400 15px/24px var(--font-sans); }
+.accident-page .notice { background: #ECFDF3; border-color: #067647; color: #067647; }
+/* Operational detail and the separate ML task share the approved light surface. */
+.accident-detail .panel { background: #FFFFFF; border: 1px solid var(--line); box-shadow: none; padding: 24px; }
+.accident-detail .panel > .page-head { flex-wrap: wrap; }
+.accident-detail .tab-radio { min-height: 0; padding: 0; border: 0; }
+.accident-detail .tab-bar label { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; line-height: 24px; }
+.accident-detail .panel > .page-head .sev { background: none; border: 0; padding: 0; color: var(--ink-2); font: 400 15px/24px var(--font-sans); }
+.accident-detail .panel > .page-head .sev::before { content: "Prioridad operativa: "; }
+.accident-detail .section-title { font: 600 20px/28px var(--font-sans); text-transform: none; letter-spacing: normal; color: var(--ink); }
+.accident-detail .kv { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.accident-detail .kv dt, .accident-detail .kv dd { margin: 0; color: var(--ink-2); font: 400 15px/24px var(--font-sans); overflow-wrap: anywhere; }
+.accident-detail .kv dd { color: var(--ink); }
+.ml-analysis { margin-top: 24px; padding-top: 24px; }
+.ml-feedback { padding: 12px; border-left: 2px solid #067647; background: #ECFDF3; color: #067647; }
+.ml-feedback-error { border-color: #B42318; background: #FEF3F2; color: #B42318; }
+.ml-analysis > .accident-help { margin-bottom: 16px; }
+.ml-date-context { margin: 0 0 16px; color: var(--ink-2); }
+.ml-date-warning { margin: 0 0 16px; padding: 12px; border-left: 2px solid #B42318; background: #FEF3F2; color: #B42318; }
+.ml-date-context a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); text-decoration: underline; }
+.ml-analysis-form.accident-data { margin: 0; padding: 0; border: 0; }
+.ml-analysis-form .section-title { margin-bottom: 8px; font-size: 15px; line-height: 24px; }
+.ml-analysis-form .btn:disabled { background: #F2F4F7; border-color: #DDE2E8; color: #667085; cursor: not-allowed; }
+.ml-result { margin-top: 16px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: #F8FAFC; }
+.ml-result h3 { font-size: 20px; line-height: 28px; }
+.ml-result .accident-help { margin-bottom: 16px; }
+.ml-fatal { --ml-color: #B42318; --ml-soft: #FEF3F2; }
+.ml-grave { --ml-color: #9A4D00; --ml-soft: #FFF4E5; }
+.ml-leve { --ml-color: #0E7490; --ml-soft: #ECFEFF; }
+.ml-severity { display: inline-block; margin: 16px 0 8px; padding: 8px 16px; border: 1px solid var(--ml-color); border-radius: 8px; background: var(--ml-soft); color: var(--ml-color); font: 600 28px/36px var(--font-sans); }
+.ml-probabilities { margin: 0 0 16px; max-width: 560px; }
+.ml-probability { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; align-items: center; margin: 8px 0; }
+.ml-probability dd { display: flex; align-items: center; gap: 16px; margin: 0; font-variant-numeric: tabular-nums; }
+.ml-probability dd > span:last-child { min-width: 64px; text-align: right; }
+.ml-probability-track { display: block; flex: 1; height: 8px; background: #EEF2F6; border-radius: 4px; overflow: hidden; }
+.ml-probability-track > span { display: block; height: 100%; background: var(--ml-color); }
+.ml-version { color: var(--ink-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ml-history { margin-top: 24px; }
+.ml-history summary { display: list-item; min-height: 44px; padding-block: 10px; cursor: pointer; }
+.ml-history li { margin-bottom: 16px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .accident-heading h1 { font-size: 24px; line-height: 32px; }
+  .accident-registration { padding: 16px; }
+  .accident-detail .panel { padding: 16px; }
+  .accident-identification, .accident-data .road-grid, .accident-data .accident-location .road-grid { grid-template-columns: minmax(0, 1fr); }
+  .accident-location .field-block, .accident-location .field-block:nth-last-child(-n+2) { grid-column: auto; }
+  .accident-page .incident { grid-template-columns: minmax(0, 1fr) auto; padding: 16px; }
+  .accident-page .inc-main { grid-column: 1 / -1; }
+  .accident-page .status { justify-self: start; }
+}
+
 /* Create incident command bar */
 .create {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px;

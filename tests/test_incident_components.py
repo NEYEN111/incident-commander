@@ -31,7 +31,7 @@ def _seed_user(db_session):
     db_session.flush()
 
 
-def test_create_incident_links_components_and_detail_shows_deps(client, db_session):
+def test_create_incident_keeps_components_outside_road_detail(client, db_session):
     bootstrap_admin(db_session, "admin@localhost")
     create_user(
         db_session, email="ic@x.io", name="IC", role=Role.incident_commander, password="pw-123456"
@@ -60,7 +60,24 @@ def test_create_incident_links_components_and_detail_shows_deps(client, db_sessi
     db_session.commit()
     assert [s.name for s in inc.components] == ["Checkout"]
     r = client.get(f"/incidents/{inc.id}")
-    assert "Checkout" in r.text and "Payments" in r.text  # affected component + its dependency
+    assert r.status_code == 200
+    # Road-accident detail intentionally omits SRE dependencies. Their catalog and
+    # persisted relationships must remain available, including after a road edit.
+    assert "Checkout" not in r.text and "Payments" not in r.text
+    catalog = client.get(f"/systems/{sysm.id}")
+    assert catalog.status_code == 200
+    assert "Checkout" in catalog.text and "Payments" in catalog.text
+    edited = client.post(
+        f"/incidents/{inc.id}/edit",
+        data={"title": "Accidente actualizado", "severity_level_id": str(lvl.id)},
+        follow_redirects=False,
+    )
+    assert edited.status_code == 303
+    db_session.expire_all()
+    assert inc.title == "Accidente actualizado"
+    assert inc.system_id == sysm.id
+    assert [component.id for component in inc.components] == [a.id]
+    assert [dependency.id for dependency in a.depends_on] == [b.id]
 
 
 # ---------------------------------------------------------------------------

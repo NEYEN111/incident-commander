@@ -39,7 +39,7 @@ def _incident(db_session):
 
 
 def test_incident_route_flash_renders_on_detail(client, db_session):
-    # An empty note flashes "Note cannot be empty" and 303-redirects to the detail page;
+    # An empty note flashes a localized error and 303-redirects to the detail page;
     # following the redirect, base.html must render the flash (previously it was invisible).
     _login(client, db_session, "ic@x.io", Role.incident_commander)
     inc = _incident(db_session)
@@ -48,7 +48,7 @@ def test_incident_route_flash_renders_on_detail(client, db_session):
         f"/incidents/{inc.id}/notes", data={"body": "   "}
     )  # follows the 303 by default
     assert r.status_code == 200
-    assert "Note cannot be empty" in r.text
+    assert '<div class="notice">La nota no puede estar vacía</div>' in r.text
 
 
 def test_flash_is_consumed_after_one_render(client, db_session):
@@ -60,4 +60,4 @@ def test_flash_is_consumed_after_one_render(client, db_session):
         f"/incidents/{inc.id}/notes", data={"body": "   "}
     )  # consumes the flash on the redirect render
     r2 = client.get(f"/incidents/{inc.id}")
-    assert "Note cannot be empty" not in r2.text
+    assert "La nota no puede estar vacía" not in r2.text

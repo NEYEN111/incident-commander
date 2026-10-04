@@ -1,18 +1,21 @@
 {% extends "base.html" %}
+{% block title %}Configuración · {{ app_name }}{% endblock %}
+{% block page_surface %}support-page settings-page{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/support-pages.css?v=1">
 <div class="page-head"><h1>Configuración</h1></div>
 <p class="page-sub">Administra el acceso, las prioridades operativas, los estados y los responsables.</p>
 
-<div class="card">
-  <h2>Correo electrónico (SMTP)</h2>
+<section class="card" aria-labelledby="smtp-title">
+  <h2 id="smtp-title">Correo electrónico (SMTP)</h2>
   <form method="post" action="/settings/smtp">
     <div class="form-row">
       <label class="field-block grow"><span>Servidor</span><input name="host" value="{{ smtp.host or '' }}"></label>
       <label class="field-block"><span>Puerto</span><input name="port" type="number" value="{{ smtp.port or '' }}"></label>
     </div>
     <div class="form-row">
-      <label class="field-block grow"><span>Usuario</span><input name="username" value="{{ smtp.username or '' }}"></label>
-      <label class="field-block grow"><span>Contraseña</span><input name="password" type="password" placeholder="{{ 'deja en blanco para conservar el valor actual' if smtp.password else '' }}"></label>
+      <label class="field-block grow"><span>Usuario</span><input name="username" autocomplete="off" value="{{ smtp.username or '' }}"></label>
+      <label class="field-block grow"><span>Contraseña</span><input name="password" type="password" autocomplete="new-password" placeholder="{{ 'deja en blanco para conservar el valor actual' if smtp.password else '' }}"></label>
     </div>
     <div class="form-row">
       <label class="field-block grow"><span>Correo del remitente</span><input name="from_address" value="{{ smtp.from_address or '' }}"></label>
@@ -20,20 +23,21 @@
     </div>
     <button class="btn btn-primary" type="submit">Guardar SMTP</button>
   </form>
-  <form method="post" action="/settings/smtp/test" style="margin-top:10px">
+  <form class="secondary-action" method="post" action="/settings/smtp/test">
     <button class="btn" type="submit" {{ 'disabled' if not smtp_configured else '' }}>Enviar correo de prueba</button>
   </form>
-</div>
+  {% if not smtp_configured %}<p class="help">Configura el servidor y el correo del remitente antes de enviar un correo de prueba.</p>{% endif %}
+</section>
 
-<div class="card">
-  <h2>Inicio de sesión único (OIDC)</h2>
+<section class="card" aria-labelledby="sso-title">
+  <h2 id="sso-title">Inicio de sesión único (OIDC)</h2>
   <form method="post" action="/settings/sso">
-    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Activar SSO</label><br>
+    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Activar SSO</label>
     <label class="check"><input type="checkbox" name="allow_local_login" value="true" {{ 'checked' if sso.allow_local_login else '' }}> Permitir acceso con contraseña (el administrador siempre puede acceder)</label>
-    <label class="field-block" style="margin-top:10px"><span>URL del proveedor</span><input name="issuer" value="{{ sso.issuer or '' }}" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0 o https://accounts.google.com"></label>
+    <label class="field-block"><span>URL del proveedor</span><input name="issuer" value="{{ sso.issuer or '' }}" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0 o https://accounts.google.com"></label>
     <div class="form-row">
-      <label class="field-block grow"><span>ID del cliente</span><input name="client_id" value="{{ sso.client_id or '' }}"></label>
-      <label class="field-block grow"><span>Secreto del cliente</span><input name="client_secret" type="password" placeholder="{{ 'deja en blanco para conservar el valor actual' if sso.client_secret else '' }}"></label>
+      <label class="field-block grow"><span>ID del cliente</span><input name="client_id" autocomplete="off" value="{{ sso.client_id or '' }}"></label>
+      <label class="field-block grow"><span>Secreto del cliente</span><input name="client_secret" type="password" autocomplete="new-password" placeholder="{{ 'deja en blanco para conservar el valor actual' if sso.client_secret else '' }}"></label>
     </div>
     <div class="form-row">
       <label class="field-block grow"><span>Texto del botón</span><input name="display_name" value="{{ sso.display_name or '' }}" placeholder="Microsoft"></label>
@@ -41,97 +45,101 @@
     </div>
     <button class="btn btn-primary" type="submit">Guardar SSO</button>
   </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">URI de redirección para registrar en el proveedor: <code>{{ base_url }}/auth/oidc/callback</code>. Si los dominios permitidos están vacíos, se acepta cualquier usuario de este proveedor.</p>
-</div>
+  <p class="help">URI de redirección para registrar en el proveedor: <code>{{ base_url }}/auth/oidc/callback</code>. Si los dominios permitidos están vacíos, se acepta cualquier usuario de este proveedor.</p>
+</section>
 
-<div class="card">
-  <h2>Prioridades operativas</h2>
+<section class="card" aria-labelledby="severity-title">
+  <h2 id="severity-title">Prioridades operativas</h2>
   {% if severity_levels %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
+  <div class="table-scroll" role="region" aria-labelledby="severity-title" tabindex="0">
+  <table>
     <thead>
       <tr>
-        <th style="text-align:left; padding:6px 8px">Nombre</th>
-        <th style="text-align:left; padding:6px 8px">Color</th>
-        <th style="text-align:left; padding:6px 8px">Orden</th>
-        <th style="text-align:left; padding:6px 8px">Predeterminado</th>
-        <th style="text-align:left; padding:6px 8px"></th>
+        <th scope="col">Nombre</th>
+        <th scope="col">Color</th>
+        <th scope="col">Orden</th>
+        <th scope="col">Predeterminado</th>
+        <th scope="col">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for lvl in severity_levels %}
       <tr>
-        <td style="padding:6px 8px">{{ lvl.label }}</td>
-        <td style="padding:6px 8px">
-          <span style="display:inline-block; width:18px; height:18px; border-radius:3px; background:{{ lvl.color }}; vertical-align:middle; margin-right:6px"></span>
-          <span style="color:{{ lvl.color }}">{{ lvl.color }}</span>
+        <td>{{ lvl.label }}</td>
+        <td>
+          <span class="color-swatch" style="background:{{ lvl.color }}" aria-hidden="true"></span>
+          <span>{{ lvl.color }}</span>
         </td>
-        <td style="padding:6px 8px">{{ lvl.rank }}</td>
-        <td style="padding:6px 8px">
+        <td>{{ lvl.rank }}</td>
+        <td>
           {% if lvl.is_default %}<span class="badge-yes">predeterminado</span>
-          {% else %}<form method="post" action="/settings/severity/{{ lvl.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
+          {% else %}<form method="post" action="/settings/severity/{{ lvl.id }}/default"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
         </td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/severity/{{ lvl.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ lvl.label|tojson }} + "?")'>Eliminar</button>
+        <td>
+          <form method="post" action="/settings/severity/{{ lvl.id }}/delete">
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ lvl.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
-  <p class="muted" style="margin-bottom:16px">Todavía no hay prioridades definidas.</p>
+  <p class="muted">Todavía no hay prioridades definidas.</p>
   {% endif %}
 
-  <h3 style="margin-bottom:10px">Añadir prioridad operativa</h3>
+  <h3>Añadir prioridad operativa</h3>
   <form method="post" action="/settings/severity">
     <div class="form-row">
       <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="40"></label>
       <label class="field-block"><span>Color</span><input type="color" name="color" value="#808080" required></label>
       <label class="field-block"><span>Orden</span><input type="number" name="rank" value="100" min="1"></label>
     </div>
-    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
+    <label class="check"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
     <div><button class="btn btn-primary" type="submit">Añadir prioridad</button></div>
   </form>
-</div>
+</section>
 
-<div class="card">
-  <h2>Estados del registro</h2>
+<section class="card" aria-labelledby="statuses-title">
+  <h2 id="statuses-title">Estados del registro</h2>
   {% if status_levels %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
+  <div class="table-scroll" role="region" aria-labelledby="statuses-title" tabindex="0">
+  <table>
     <thead>
       <tr>
-        <th style="text-align:left; padding:6px 8px">Nombre</th>
-        <th style="text-align:left; padding:6px 8px">Categoría</th>
-        <th style="text-align:left; padding:6px 8px">Orden</th>
-        <th style="text-align:left; padding:6px 8px">Predeterminado</th>
-        <th style="text-align:left; padding:6px 8px"></th>
+        <th scope="col">Nombre</th>
+        <th scope="col">Categoría</th>
+        <th scope="col">Orden</th>
+        <th scope="col">Predeterminado</th>
+        <th scope="col">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for s in status_levels %}
       <tr>
-        <td style="padding:6px 8px">{{ s.label | ui_es }}</td>
-        <td style="padding:6px 8px">{{ s.category.value | ui_es }}</td>
-        <td style="padding:6px 8px">{{ s.rank }}</td>
-        <td style="padding:6px 8px">
+        <td>{{ s.label | ui_es }}</td>
+        <td>{{ s.category.value | ui_es }}</td>
+        <td>{{ s.rank }}</td>
+        <td>
           {% if s.is_default %}<span class="badge-yes">predeterminado</span>
-          {% else %}<form method="post" action="/settings/statuses/{{ s.id }}/default" style="display:inline"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
+          {% else %}<form method="post" action="/settings/statuses/{{ s.id }}/default"><button class="btn btn-sm" type="submit">Usar por defecto</button></form>{% endif %}
         </td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/statuses/{{ s.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ s.label|tojson }} + "?")'>Eliminar</button>
+        <td>
+          <form method="post" action="/settings/statuses/{{ s.id }}/delete">
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ s.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="muted">Todavía no hay estados definidos.</p>
   {% endif %}
 
-  <h3 style="margin-bottom:10px">Añadir estado</h3>
+  <h3>Añadir estado</h3>
   <form method="post" action="/settings/statuses">
     <div class="form-row">
       <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="40"></label>
@@ -144,38 +152,40 @@
       </label>
       <label class="field-block"><span>Orden</span><input type="number" name="rank" value="100" min="1"></label>
     </div>
-    <label class="check" style="margin-bottom:12px"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
+    <label class="check"><input type="checkbox" name="is_default" value="true"> Usar por defecto</label>
     <div><button class="btn btn-primary" type="submit">Añadir estado</button></div>
   </form>
-</div>
+</section>
 
-<div class="card">
-  <h2>Roles de responsables</h2>
+<section class="card" aria-labelledby="responsible-title">
+  <h2 id="responsible-title">Roles de responsables</h2>
   {% if incident_role_types %}
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px">
+  <div class="table-scroll" role="region" aria-labelledby="responsible-title" tabindex="0">
+  <table>
     <thead><tr>
-      <th style="text-align:left; padding:6px 8px">Nombre</th>
-      <th style="text-align:left; padding:6px 8px">Orden</th>
-      <th style="text-align:left; padding:6px 8px"></th>
+      <th scope="col">Nombre</th>
+      <th scope="col">Orden</th>
+      <th scope="col">Acciones</th>
     </tr></thead>
     <tbody>
       {% for rt in incident_role_types %}
       <tr>
-        <td style="padding:6px 8px">{{ rt.label | ui_es }}</td>
-        <td style="padding:6px 8px">{{ rt.rank }}</td>
-        <td style="padding:6px 8px">
-          <form method="post" action="/settings/roles/{{ rt.id }}/delete" style="display:inline">
-            <button class="btn" type="submit" onclick='return confirm("¿Eliminar " + {{ rt.label|tojson }} + "?")'>Eliminar</button>
+        <td>{{ rt.label | ui_es }}</td>
+        <td>{{ rt.rank }}</td>
+        <td>
+          <form method="post" action="/settings/roles/{{ rt.id }}/delete">
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ rt.label|tojson }} + "?")'>Eliminar</button>
           </form>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
-  <p class="muted" style="margin-bottom:16px">Todavía no hay roles definidos.</p>
+  <p class="muted">Todavía no hay roles definidos.</p>
   {% endif %}
-  <h3 style="margin-bottom:10px">Añadir rol</h3>
+  <h3>Añadir rol</h3>
   <form method="post" action="/settings/roles">
     <div class="form-row">
       <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="60"></label>
@@ -183,5 +193,5 @@
     </div>
     <div><button class="btn btn-primary" type="submit">Añadir rol</button></div>
   </form>
-</div>
+</section>
 {% endblock %}

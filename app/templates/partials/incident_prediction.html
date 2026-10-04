@@ -1,26 +1,53 @@
-<section class="section" id="ml-prediction">
-  <h2 class="section-title">Predicción de gravedad por ML</h2>
-  {% if latest_prediction %}
-  <p><strong>Gravedad estimada: {{ latest_prediction.predicted_severity }}</strong></p>
-  <p class="muted">Probabilidades estimadas</p>
-  <dl class="kv">
-    <dt>Fatal</dt><dd>{{ '%.1f' | format(latest_prediction.prob_fatal * 100) }}%</dd>
-    <dt>Grave</dt><dd>{{ '%.1f' | format(latest_prediction.prob_grave * 100) }}%</dd>
-    <dt>Leve</dt><dd>{{ '%.1f' | format(latest_prediction.prob_leve * 100) }}%</dd>
-    <dt>Versión del modelo</dt><dd>{{ latest_prediction.model_version }}</dd>
-    <dt>Fecha de predicción</dt><dd>{{ latest_prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }}</dd>
-  </dl>
-  {% else %}
-  <p class="muted">Todavía no hay predicciones para este accidente.</p>
+<section class="section ml-analysis" id="ml-prediction" aria-labelledby="ml-analysis-title">
+  {% set ml_ready = i.date is not none and i.time is not none %}
+  <h2 id="ml-analysis-title">Análisis de gravedad con ML</h2>
+  {% if notice %}<p class="ml-feedback{% if notice != 'Predicción ML guardada.' %} ml-feedback-error{% endif %}" role="status">{{ notice | ui_es }}</p>{% endif %}
+  <p class="accident-help">Completa los datos necesarios para estimar la gravedad del accidente.</p>
+  {% if not ml_ready %}
+  <p class="ml-date-warning" id="ml-date-warning" role="status">Completa la fecha y la hora del accidente antes de analizar.</p>
   {% endif %}
+  <p class="ml-date-context">Fecha: {{ road_display('date', i.date) }} · Hora: {{ road_display('time', i.time) }}.<br>
+    El día de la semana y la hora del modelo se derivan automáticamente de estos datos.
+    {% if _can_manage %}<a href="#edit-date" onclick="document.getElementById('operational-edit').open = true">Editar fecha y hora</a>{% endif %}
+  </p>
   {% if _can_manage %}
-  <form method="post" action="/incidents/{{ i.id }}/predict">
-    <button class="btn btn-sm" type="submit">{{ 'Volver a calcular' if latest_prediction else 'Calcular predicción' }}</button>
+  <form class="ml-analysis-form accident-data" method="post" action="/incidents/{{ i.id }}/predict">
+    {% with road_data=road_values(i), field_prefix='ml', road_field_names=['road_type', 'speed_limit', 'first_road_class', 'junction_detail'], road_section_title='Vía', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+    <p class="accident-help" id="ml-speed-help">Velocidad en mph, según las categorías admitidas por el modelo.{% if i.speed_limit is not none and i.speed_limit not in [20, 30, 40, 50, 60, 70] %} El valor registrado ({{ i.speed_limit }} mph) no es compatible; selecciona una velocidad admitida para analizar.{% endif %}</p>
+    {% with road_data=road_values(i), field_prefix='ml', road_field_names=['urban_or_rural_area', 'light_conditions', 'weather_conditions', 'road_surface_conditions'], road_section_title='Entorno', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+    {% with road_data=road_values(i), field_prefix='ml', road_field_names=['number_of_vehicles'], road_section_title='Accidente', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+    <button class="btn btn-primary" type="submit"{% if not ml_ready %} disabled aria-describedby="ml-date-warning"{% endif %}>{{ 'Volver a analizar' if latest_prediction else 'Analizar con ML' }}</button>
   </form>
+  {% else %}
+  <dl class="kv">
+    {% for name in ['road_type', 'speed_limit', 'first_road_class', 'junction_detail', 'urban_or_rural_area', 'light_conditions', 'weather_conditions', 'road_surface_conditions', 'number_of_vehicles'] %}
+    <dt>{{ road_fields[name].label }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
+    {% endfor %}
+  </dl>
   {% endif %}
-  <p class="muted">La predicción es una estimación del modelo y no reemplaza la gravedad registrada del accidente.</p>
+  <div class="ml-result" role="region" aria-labelledby="ml-result-title">
+  <h3 id="ml-result-title">Predicción de gravedad</h3>
+  {% if latest_prediction %}
+  <p class="ml-severity ml-{{ latest_prediction.predicted_severity | lower }}" aria-label="Gravedad estimada: {{ latest_prediction.predicted_severity }}">{{ latest_prediction.predicted_severity | upper }}</p>
+  <p class="accident-help">Probabilidades estimadas</p>
+  <dl class="ml-probabilities">
+    {% for label, probability in [('Leve', latest_prediction.prob_leve), ('Grave', latest_prediction.prob_grave), ('Fatal', latest_prediction.prob_fatal)] %}
+    <div class="ml-probability ml-{{ label | lower }}">
+      <dt>{{ label }}</dt><dd><span class="ml-probability-track" aria-hidden="true"><span style="width: {{ probability * 100 }}%"></span></span><span>{{ '%.1f' | format(probability * 100) }}%</span></dd>
+    </div>
+    {% endfor %}
+  </dl>
+  <p class="ml-version">Modelo {{ latest_prediction.model_version }} · {{ latest_prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }}</p>
+  <p class="accident-help">Resultado calculado con los datos guardados en esa fecha. Editar el accidente no actualiza esta predicción; vuelve a analizar para obtener un resultado nuevo.</p>
+  {% else %}
+  <p class="accident-help">Todavía no hay predicciones para este accidente.</p>
+  {% endif %}
+  <p class="accident-help">La predicción del modelo es independiente de la prioridad operativa.</p>
+  <p class="accident-help">Es una estimación del modelo y no sustituye la valoración del accidente.</p>
+  </div>
   {% if previous_predictions %}
-  <h3 class="section-title">Predicciones anteriores (últimas 5)</h3>
+  <details class="ml-history">
+  <summary>Predicciones anteriores (últimas 5)</summary>
   <ul>
     {% for prediction in previous_predictions %}
     <li data-prediction-id="{{ prediction.id }}">
@@ -32,5 +59,6 @@
     </li>
     {% endfor %}
   </ul>
+  </details>
   {% endif %}
 </section>

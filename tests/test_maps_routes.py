@@ -6,7 +6,14 @@ from sqlalchemy.exc import IntegrityError
 
 from app.db import get_db
 from app.main import create_app
-from app.models import Incident, IncidentPrediction, Role, SeverityLevel
+from app.models import (
+    Incident,
+    IncidentPrediction,
+    Role,
+    SeverityLevel,
+    StatusCategory,
+    StatusLevel,
+)
 from app.services.users import create_user
 
 
@@ -79,6 +86,14 @@ def test_maps_page_uses_leaflet_clustering_and_navigation(authenticated):
     response = client.get("/maps")
     assert response.status_code == 200
     assert "Mapa de accidentes" in response.text
+    assert (
+        "Explora la ubicación de los accidentes y su última predicción de gravedad."
+        in response.text
+    )
+    assert 'class="map-surface"' in response.text
+    for name in ("date_from", "date_to", "prediction", "zone"):
+        assert f'name="{name}"' in response.text
+    assert "Aplicar filtros" in response.text and "Limpiar" in response.text
     for path in (
         "/static/vendor/leaflet/leaflet.js",
         "/static/vendor/leaflet.markercluster/leaflet.markercluster.js",
@@ -132,15 +147,20 @@ def test_invalid_coordinates_cannot_enter_map_data(authenticated, db_session, fi
     assert data["count"] == 1 and data["incidents"][0]["id"] == good.id
 
 
-def test_latest_prediction_is_scoped_and_priority_is_not_exposed(authenticated, db_session):
+def test_latest_prediction_is_scoped_and_operational_labels_are_separate(authenticated, db_session):
     client, user = authenticated
     level = SeverityLevel(
         label="Prioridad operativa urgente", rank=1, color="#000000", is_default=True
     )
     db_session.add(level)
+    state = StatusLevel(label="En atención", category=StatusCategory.active, rank=1)
+    db_session.add(state)
     db_session.flush()
     first = accident(
-        db_session, severity_level_id=level.id, description="Información ajena al mapa"
+        db_session,
+        severity_level_id=level.id,
+        status_id=state.id,
+        description="Información ajena al mapa",
     )
     second = accident(db_session)
     neutral = accident(db_session)
@@ -166,10 +186,16 @@ def test_latest_prediction_is_scoped_and_priority_is_not_exposed(authenticated, 
         "date",
         "time",
         "urban_or_rural_area",
+        "operational_priority",
+        "status",
         "latest_prediction",
     }
     assert all(set(item) == expected for item in items.values())
-    assert "severity_level" not in str(data) and "Prioridad operativa urgente" not in str(data)
+    assert items[first.id]["operational_priority"] == "Prioridad operativa urgente"
+    assert items[first.id]["status"] == "En atención"
+    assert items[neutral.id]["operational_priority"] is None and items[neutral.id]["status"] is None
+    assert "severity_level" not in str(data) and "color" not in str(data)
+    assert "Información ajena al mapa" not in str(data)
     assert items[first.id]["date"] == "2026-10-04" and items[first.id]["time"] == "14:30"
     fatal = client.get("/maps/incidents.json", params={"prediction": "Fatal"}).json()
     assert [item["id"] for item in fatal["incidents"]] == [second.id]
@@ -211,6 +237,11 @@ def test_no_prediction_filter_keeps_neutral_accidents(authenticated, db_session)
     db_session.commit()
     data = client.get("/maps/incidents.json", params={"prediction": "none"}).json()
     assert data["count"] == 1 and data["incidents"][0]["id"] == neutral.id
+
+
+def test_empty_map_returns_no_artificial_points(authenticated):
+    client, _ = authenticated
+    assert client.get("/maps/incidents.json").json() == {"incidents": [], "count": 0}
 
 
 @pytest.mark.parametrize(

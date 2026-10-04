@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from app.auth import require_user
 from app.db import get_db
 from app.models import User
-from app.services.insights import compute_insights, window_since
+from app.services.insights import (
+    compute_insights,
+    load_model_evaluation,
+    load_model_metadata,
+    window_since,
+)
 from app.templating import templates
 
 router = APIRouter()
@@ -22,5 +27,13 @@ def insights_page(
         raise HTTPException(status_code=422, detail="Selecciona 30 días, 90 días o Todo")
     data = compute_insights(db, since=window_since(days))
     return templates.TemplateResponse(
-        request, "insights.html", {"current_user": user, "data": data, "days": days}
+        request,
+        "insights.html",
+        {
+            "current_user": user,
+            "data": data,
+            "days": days,
+            "model_info": load_model_metadata(),
+            "model_evaluation": load_model_evaluation(),
+        },
     )

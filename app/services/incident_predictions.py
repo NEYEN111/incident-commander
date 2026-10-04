@@ -3,7 +3,7 @@
 import logging
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Incident, IncidentPrediction
@@ -76,6 +76,31 @@ def create_prediction(db: Session, incident: Incident, *, created_by: int) -> In
     db.add(prediction)
     db.flush()
     return prediction
+
+
+def latest_prediction_labels(db: Session, incident_ids: list[int]) -> dict[int, str]:
+    """Load the list's latest labels in one query, including timestamp ties."""
+    if not incident_ids:
+        return {}
+    ranked = (
+        select(
+            IncidentPrediction.incident_id,
+            IncidentPrediction.predicted_severity,
+            func.row_number()
+            .over(
+                partition_by=IncidentPrediction.incident_id,
+                order_by=(IncidentPrediction.created_at.desc(), IncidentPrediction.id.desc()),
+            )
+            .label("position"),
+        )
+        .where(IncidentPrediction.incident_id.in_(incident_ids))
+        .subquery()
+    )
+    return dict(
+        db.execute(
+            select(ranked.c.incident_id, ranked.c.predicted_severity).where(ranked.c.position == 1)
+        ).all()
+    )
 
 
 def recent_predictions(db: Session, incident_id: int) -> list[IncidentPrediction]:

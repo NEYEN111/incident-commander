@@ -6,3 +6,12 @@ tests/
 __pycache__
 *.pyc
 .env
+.env.*
+!.env.example
+.agents
+.github
+.codex
+notebooks
+assets
+.ruff_cache
+*.zip

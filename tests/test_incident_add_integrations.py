@@ -212,28 +212,76 @@ def _enable_google(db_session):
     db_session.flush()
 
 
-def test_detail_shows_add_controls_when_missing(client, db_session):
+def test_detail_hides_sre_controls_but_preserves_actions(client, db_session, monkeypatch):
     _login(client, db_session)
     _enable_slack(db_session)
     _enable_google_sa(db_session)
-    db_session.add(
-        SlackConnection(team_id="T1", team_name="Acme", bot_token="xoxb-1", created_by=1)
-    )
+    connection = SlackConnection(team_id="T1", team_name="Acme", bot_token="xoxb-1", created_by=1)
+    db_session.add(connection)
     inc = _open_incident(db_session)
     db_session.flush()
-    html = client.get(f"/incidents/{inc.id}").text
-    assert f"/incidents/{inc.id}/add-meet" in html and "Add video" in html
-    assert f"/incidents/{inc.id}/open-slack" in html and "Open channel" in html
+    response = client.get(f"/incidents/{inc.id}")
+    assert response.status_code == 200
+    html = response.text
+    # Hidden in the road UI by design; authenticated backend actions still work.
+    assert f"/incidents/{inc.id}/add-meet" not in html
+    assert f"/incidents/{inc.id}/open-slack" not in html
+    assert inc.meet_url is None and inc.slack_channel_id is None
+    monkeypatch.setattr(
+        actions.google,
+        "create_meet_space",
+        lambda **k: ("https://meet.google.com/abc", "spaces/abc"),
+    )
+    monkeypatch.setattr(
+        actions.slack, "create_channel", lambda token, **k: {"id": "C9", "name": "inc-x"}
+    )
+    monkeypatch.setattr(
+        actions.slack, "channel_url", lambda team_id, channel_id: "https://slack/C9"
+    )
+    monkeypatch.setattr(actions.slack, "set_topic_purpose", lambda token, **k: None)
+    monkeypatch.setattr(actions.slack, "post_message", lambda token, **k: None)
+    meet = client.post(
+        f"/incidents/{inc.id}/add-meet",
+        data={"video": "meet"},
+        follow_redirects=False,
+    )
+    assert meet.status_code == 303
+    slack = client.post(
+        f"/incidents/{inc.id}/open-slack",
+        data={"slack_connection_id": str(connection.id)},
+        follow_redirects=False,
+    )
+    assert slack.status_code == 303
+    db_session.refresh(inc)
+    assert inc.meet_url == "https://meet.google.com/abc"
+    assert inc.meet_space_name == "spaces/abc"
+    assert inc.slack_channel_id == "C9" and inc.slack_connection_id == connection.id
 
 
-def test_detail_hides_add_meet_when_present(client, db_session):
+def test_detail_hides_existing_meet_without_losing_it(client, db_session, monkeypatch):
     _login(client, db_session)
-    _enable_google(db_session)
+    _enable_google_sa(db_session)
     inc = _open_incident(db_session)
     inc.meet_url = "https://meet.google.com/existing"
     db_session.flush()
-    html = client.get(f"/incidents/{inc.id}").text
-    assert "/add-meet" not in html and "join" in html
+    response = client.get(f"/incidents/{inc.id}")
+    assert response.status_code == 200
+    assert "/add-meet" not in response.text
+    assert inc.meet_url not in response.text
+    called = []
+    monkeypatch.setattr(
+        actions.google,
+        "create_meet_space",
+        lambda **k: called.append(1) or ("https://meet.google.com/new", "spaces/new"),
+    )
+    result = client.post(
+        f"/incidents/{inc.id}/add-meet",
+        data={"video": "meet"},
+        follow_redirects=False,
+    )
+    assert result.status_code == 303 and not called
+    db_session.refresh(inc)
+    assert inc.meet_url == "https://meet.google.com/existing"
 
 
 def test_detail_no_add_meet_for_readonly(client, db_session):

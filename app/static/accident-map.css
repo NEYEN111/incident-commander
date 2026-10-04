@@ -1,24 +1,61 @@
-.main:has(#accident-map) { max-width: none; }
-.map-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-.map-filters label { display: grid; gap: 5px; flex: 1 1 160px; }
-.map-filters input, .map-filters select { width: 100%; min-width: 0; }
-.map-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
-.accident-legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--ink-2); }
-.accident-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.accident-legend i, .accident-marker span { display: block; width: 14px; height: 14px; border-radius: 50%; }
-.fatal { --marker-color: #e34b5c; }
-.grave { --marker-color: #f4b740; }
-.leve { --marker-color: #56b6e6; }
-.neutral { --marker-color: #8796a5; }
-.accident-legend i, .accident-marker span { background: var(--marker-color); }
-.accident-marker span { width: 20px; height: 20px; border: 2px solid white; box-shadow: 0 1px 4px #0008; }
-#accident-map { width: 100%; height: min(68vh, 760px); min-height: 360px; border: 1px solid var(--line); border-radius: var(--r); }
-#accident-map .leaflet-popup-content-wrapper, #accident-map .leaflet-popup-tip { background: var(--surface); color: var(--ink); }
-#accident-map .leaflet-popup-content { max-width: 260px; overflow-wrap: anywhere; }
-#accident-map .leaflet-popup-content p { margin: 7px 0; }
-#accident-map .leaflet-popup-content a { color: var(--accent); }
-#map-error { color: var(--ink); padding: 10px; border: 1px solid var(--line); }
-@media (max-width: 640px) {
-  .map-filters label { flex-basis: calc(50% - 12px); }
-  #accident-map { height: 60vh; min-height: 320px; }
+/* Map page only; keep the approved shell and other phases unchanged. */
+.main.pilot-main:has(.accident-map-page) { max-width: 1664px; }
+.accident-map-page {
+  --map-text: #171A1F; --map-secondary: #5B6472; --map-border: #DDE2E8;
+  --map-control: #7C8796; --map-action: #175CD3; --map-hover: #1849A9;
+  max-width: 1600px; margin-inline: auto; color: var(--map-text);
+  font: 400 15px/24px var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.map-surface > .notice { padding: 12px 16px; border: 1px solid #DDE2E8; background: #FFFFFF; color: #171A1F; font: 400 15px/24px var(--font-sans); }
+.accident-map-page h1 { margin: 0; font: 600 28px/36px var(--font-sans); letter-spacing: normal; color: var(--map-text); }
+.map-header p { margin: 8px 0 24px; color: var(--map-secondary); }
+.map-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 16px; border: 1px solid var(--map-border); border-radius: 12px; background: #FFFFFF; }
+.map-filters label { display: grid; gap: 8px; flex: 1 1 148px; min-width: 0; color: var(--map-secondary); }
+.map-filters input, .map-filters select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 12px; border: 1px solid var(--map-control); border-radius: 8px; background: #FFFFFF; background-image: none; color: var(--map-text); font: 400 16px/24px var(--font-sans); appearance: auto; box-shadow: none; }
+.map-filters input:hover, .map-filters select:hover { border-color: var(--map-action); }
+.map-filters input:focus, .map-filters select:focus { border-color: var(--map-action); box-shadow: none; }
+.map-filters button { min-height: 44px; padding: 9px 16px; border: 1px solid var(--map-control); border-radius: 8px; background: #FFFFFF; color: var(--map-text); font: 500 16px/24px var(--font-sans); cursor: pointer; }
+.map-filters .map-apply { border-color: var(--map-action); background: var(--map-action); color: #FFFFFF; }
+.map-filters .map-apply:hover { border-color: var(--map-hover); background: var(--map-hover); }
+.map-filters .map-clear:hover { background: #EEF2F6; }
+.accident-map-page :focus-visible { outline: 2px solid var(--map-action); outline-offset: 2px; }
+.map-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin: 16px 0; }
+#map-status { margin: 0; color: var(--map-text); }
+.accident-legend { display: flex; gap: 8px 24px; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; color: var(--map-secondary); }
+.accident-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.accident-map-page .fatal { --marker-color: #B42318; --marker-soft: #FEF3F2; }
+.accident-map-page .grave { --marker-color: #9A4D00; --marker-soft: #FFF4E5; }
+.accident-map-page .leve { --marker-color: #0E7490; --marker-soft: #ECFEFF; }
+.accident-map-page .neutral { --marker-color: #475467; --marker-soft: #F2F4F7; }
+.accident-legend li > span { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--marker-color); color: #FFFFFF; font: 600 13px/18px var(--font-sans); }
+.accident-marker { display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+.accident-marker > span { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 2px solid #FFFFFF; border-radius: 50%; background: var(--marker-color); color: #FFFFFF; box-shadow: 0 0 0 1px #475467; font: 600 13px/18px var(--font-sans); }
+.map-cluster { display: flex; align-items: center; justify-content: center; border: 2px solid #667085; border-radius: 50%; background: #FFFFFF; color: var(--map-text); font: 600 15px/24px var(--font-sans); }
+#accident-map { width: 100%; height: clamp(420px, 70vh, 900px); height: clamp(420px, 70dvh, 900px); border: 1px solid var(--map-border); border-radius: 12px; background: #F8FAFC; }
+#accident-map .leaflet-control-zoom { border: 1px solid var(--map-control); border-radius: 8px; overflow: visible; box-shadow: none; }
+#accident-map .leaflet-control-zoom a { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #FFFFFF; color: var(--map-text); font: 500 24px/32px var(--font-sans); }
+#accident-map .leaflet-control-zoom a:hover { background: #EEF2F6; }
+#accident-map .leaflet-control-zoom a.leaflet-disabled { background: #F2F4F7; color: #667085; }
+#accident-map .leaflet-control-attribution { background: #FFFFFF; color: var(--map-secondary); font: 400 13px/18px var(--font-sans); }
+#accident-map .leaflet-control-attribution a { color: var(--map-action); text-decoration: underline; }
+#accident-map .leaflet-popup-content-wrapper, #accident-map .leaflet-popup-tip { background: #FFFFFF; color: var(--map-text); box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
+#accident-map .leaflet-popup-content-wrapper { border: 1px solid var(--map-border); border-radius: 12px; }
+#accident-map .leaflet-popup-content { margin: 16px 24px; max-width: 320px; overflow-wrap: anywhere; font: 400 15px/24px var(--font-sans); }
+#accident-map .map-popup-title { margin: 0 24px 12px 0; color: var(--map-text); font: 600 16px/24px var(--font-sans); letter-spacing: normal; }
+.map-popup dl { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 0; }
+.map-popup dt { color: var(--map-secondary); }
+.map-popup dd { margin: 0; color: var(--map-text); }
+#accident-map .map-popup-result { margin: 16px 0 8px; }
+.map-popup-severity { display: inline-block; padding: 2px 4px; border-radius: 4px; background: var(--marker-soft); color: var(--marker-color); font-weight: 600; }
+#accident-map .map-popup-probabilities { margin: 8px 0; color: var(--map-secondary); font: 400 13px/18px var(--font-sans); }
+#accident-map .map-popup > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--map-action); text-decoration: underline; font-weight: 500; }
+#accident-map a.leaflet-popup-close-button { width: 44px; height: 44px; color: var(--map-secondary); font: 400 24px/44px var(--font-sans); border-radius: 8px; }
+#accident-map a.leaflet-popup-close-button:hover { background: #EEF2F6; }
+#map-error, #map-empty { margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--map-border); border-radius: 8px; background: #FFFFFF; color: var(--map-secondary); }
+#map-error { border-left: 2px solid #B42318; color: #B42318; background: #FEF3F2; }
+.map-help { margin: 16px 0 0; color: var(--map-secondary); }
+@media (max-width: 600px) {
+  .accident-map-page h1 { font-size: 24px; line-height: 32px; }
+  .map-filters label { flex-basis: 100%; }
+  #accident-map { height: 60vh; height: 60dvh; min-height: 320px; }
 }

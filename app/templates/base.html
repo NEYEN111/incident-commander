@@ -7,45 +7,67 @@
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <script src="/static/htmx.min.js" defer></script>
   <link rel="preload" href="/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/static/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/app.css?v=10">
+  <link rel="stylesheet" href="/static/app.css?v=16">
 </head>
-<body>
+<body class="{% if current_user %}pilot-shell{% else %}{% block body_class %}{% endblock %}{% endif %}">
+  <a class="pilot-skip" href="#main-content">Saltar al contenido</a>
   {# Flash messages are set via request.session["flash"] and popped here, so every full
      page renders them once. HTMX partials don't extend base.html, so they never consume a flash. #}
   {% set notice = request.session.pop("flash", None) %}
   {% if current_user %}
   {% set _role = effective_role(current_user) %}
   {% set _is_admin = _role and _role.value == "admin" %}
-  <div class="shell">
-    <aside class="sidebar">
-      <a class="brand" href="/"><span class="pulse" aria-hidden="true"></span><span>{{ app_name }}</span></a>
-      {% set _p = request.url.path %}
-      <nav class="nav">
-        <a href="/" class="{{ 'active' if _p == '/' or _p.startswith('/incidents') else '' }}">Accidentes</a>
-        <a href="/maps" class="{{ 'active' if _p.startswith('/maps') else '' }}">Mapa de accidentes</a>
-        <a href="/follow-ups" class="{{ 'active' if _p.startswith('/follow-ups') else '' }}">Seguimiento</a>
-        <a href="/insights" class="{{ 'active' if _p.startswith('/insights') else '' }}">Estadísticas</a>
+  {% set _p = request.url.path %}
+  {% macro nav_link(href, label, active) %}
+    <a href="{{ href }}"{% if active %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
+  {% endmacro %}
+  {% macro navigation() %}
+      <nav class="pilot-nav" aria-label="Navegación principal">
+        {{ nav_link('/', 'Accidentes', _p == '/' or _p.startswith('/incidents')) }}
+        {{ nav_link('/maps', 'Mapa de accidentes', _p.startswith('/maps')) }}
+        {{ nav_link('/insights', 'Estadísticas', _p.startswith('/insights')) }}
+        {{ nav_link('/follow-ups', 'Seguimiento', _p.startswith('/follow-ups')) }}
       </nav>
       {% if _is_admin %}
-      <nav class="nav nav-admin">
-        <a href="/users" class="{{ 'active' if _p.startswith('/users') else '' }}">Usuarios</a>
-        <a href="/groups" class="{{ 'active' if _p.startswith('/groups') else '' }}">Grupos</a>
+      <nav class="pilot-nav pilot-admin" aria-label="Administración">
+        <p class="pilot-group-title">Administración</p>
+        {{ nav_link('/users', 'Usuarios', _p.startswith('/users')) }}
+        {{ nav_link('/groups', 'Grupos', _p.startswith('/groups')) }}
+        {{ nav_link('/settings', 'Configuración', _p.startswith('/settings')) }}
       </nav>
       {% endif %}
-      <div class="sidebar-foot">
-        <div class="who">{{ current_user.email }}</div>
-        <a href="{{ '/settings' if _is_admin else '/account/password' }}">{{ 'Configuración' if _is_admin else 'Mi cuenta' }}</a>
+      <div class="pilot-account">
+        <div class="pilot-email">{{ current_user.email }}</div>
+        {% if not _is_admin %}{{ nav_link('/account/password', 'Mi cuenta', _p.startswith('/account/password')) }}{% endif %}
         <a href="/logout">Cerrar sesión</a>
       </div>
+  {% endmacro %}
+  <div class="pilot-layout">
+    <aside class="pilot-sidebar" aria-label="Barra lateral">
+      <a class="pilot-brand" href="/">
+        {% set brand_parts = app_name.rsplit(' de ', 1) %}
+        {% if brand_parts | length == 2 %}
+        <span class="pilot-brand-copy"><span class="pilot-brand-context">{{ brand_parts[0] }} de</span> <span>{{ brand_parts[1] }}</span></span>
+        {% else %}{{ app_name }}{% endif %}
+      </a>
+      {{ navigation() }}
     </aside>
-    <main class="main">
+    <header class="pilot-header">
+      <a class="pilot-brand" href="/">{{ app_name }}</a>
+      <details class="pilot-menu">
+        <summary>Menú</summary>
+        <div class="pilot-menu-content">{{ navigation() }}</div>
+      </details>
+    </header>
+    <main class="main pilot-main" id="main-content" tabindex="-1">
+      <div class="{% block page_surface %}pilot-legacy-content{% endblock %}">
       {% if notice %}<div class="notice">{{ notice | ui_es }}</div>{% endif %}
       {% block content %}{% endblock %}
+      </div>
     </main>
   </div>
   {% else %}
-  <main class="main main-plain">
+  <main class="main main-plain" id="main-content" tabindex="-1">
     {% if notice %}<div class="notice">{{ notice | ui_es }}</div>{% endif %}
     {% block content_plain %}{{ self.content() }}{% endblock %}
   </main>

@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.models import Incident, IncidentPrediction
+from app.models import Incident, IncidentPrediction, SeverityLevel, StatusLevel
 
 
 def map_incidents(
@@ -38,12 +38,16 @@ def map_incidents(
             Incident.date,
             Incident.time,
             Incident.urban_or_rural_area,
+            SeverityLevel.label.label("operational_priority"),
+            StatusLevel.label.label("status"),
             ranked.c.predicted_severity,
             ranked.c.prob_fatal,
             ranked.c.prob_grave,
             ranked.c.prob_leve,
         )
         .outerjoin(ranked, and_(ranked.c.incident_id == Incident.id, ranked.c.position == 1))
+        .outerjoin(SeverityLevel, SeverityLevel.id == Incident.severity_level_id)
+        .outerjoin(StatusLevel, StatusLevel.id == Incident.status_id)
         .where(
             Incident.latitude.between(-90, 90),
             Incident.longitude.between(-180, 180),
@@ -70,6 +74,8 @@ def map_incidents(
                 "date": row.date.isoformat() if row.date is not None else None,
                 "time": row.time.isoformat(timespec="minutes") if row.time is not None else None,
                 "urban_or_rural_area": row.urban_or_rural_area,
+                "operational_priority": row.operational_priority,
+                "status": row.status,
                 "latest_prediction": {
                     "prediction": row.predicted_severity,
                     "probabilities": {

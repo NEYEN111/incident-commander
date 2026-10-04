@@ -1,28 +1,45 @@
 {% extends "base.html" %}
+{% block page_surface %}accident-page{% endblock %}
 {% block content %}
 {% set open_count = incidents | rejectattr('is_closed') | list | length %}
-<div class="page-head">
-  <h1>Accidentes viales</h1>
-  <span class="stats"><b>{{ open_count }}</b> abiertos <span class="sep">/</span> {{ incidents | length }} total</span>
-</div>
-<p class="page-sub">Registra accidentes y consulta sus datos, estado, responsables y cronología.</p>
+<header class="accident-heading">
+  <div>
+    <h1>Accidentes</h1>
+    <p>Registra accidentes y consulta su estado y datos principales.</p>
+    <p class="accident-count"><b>{{ open_count }}</b> {{ 'abierto' if open_count == 1 else 'abiertos' }} · <b>{{ incidents | length }}</b> total</p>
+  </div>
+</header>
 {% set _role = effective_role(current_user) %}
 {% if _role and _role.value in ("admin", "incident_commander") %}
-<form class="create" method="post" action="/incidents">
-  <label class="field-block grow"><span>Título *</span><input class="title-input" name="title" placeholder="Resumen del accidente" required maxlength="300" autocomplete="off"></label>
-  <label class="field-block"><span>Prioridad operativa</span>
-    <select name="severity_level_id" aria-label="Prioridad operativa">
+<details class="accident-registration">
+<summary>Registrar accidente</summary>
+<form class="accident-create" method="post" action="/incidents">
+  <div class="accident-identification">
+  <label class="field-block" for="create-title"><span>Título *</span><input id="create-title" name="title" placeholder="Resumen del accidente" required maxlength="300" autocomplete="off"></label>
+  <label class="field-block" for="create-priority"><span>Prioridad operativa</span>
+    <select id="create-priority" name="severity_level_id">
     {% for lvl in severity_levels %}<option value="{{ lvl.id }}"{% if lvl.id == default_severity_level_id %} selected{% endif %}>{{ lvl.label }}</option>{% endfor %}
     </select>
   </label>
-  <label class="field-block road-fields"><span>Descripción</span><textarea name="description" placeholder="Descripción del accidente"></textarea></label>
-  {% with road_data={}, field_prefix='create' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
-  <label class="check"><input type="checkbox" name="is_private" value="true"> Registro privado</label>
+  <label class="field-block accident-description" for="create-description"><span>Descripción</span><textarea id="create-description" name="description" placeholder="Descripción del accidente"></textarea></label>
+  </div>
+  <section class="accident-data" aria-labelledby="accident-data-title">
+    <h3 id="accident-data-title">Fecha y ubicación</h3>
+    <p class="accident-help">Estos datos son opcionales al registrar. Podrás completar el análisis ML desde el detalle del accidente.</p>
+    {% with road_data={}, field_prefix='create', road_field_names=['date', 'time', 'latitude', 'longitude'], road_section_title='', road_hide_heading=true %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+  </section>
+  <div class="accident-submit">
   <button class="btn btn-primary" type="submit">Registrar accidente</button>
+  <label class="check"><input type="checkbox" name="is_private" value="true"> Registro privado</label>
+  </div>
 </form>
+</details>
 {% endif %}
+<section class="accident-records" aria-labelledby="records-title">
+<h2 id="records-title">Registros</h2>
 <div class="incident-list" id="incident-list">
   {% for i in incidents %}{% include "partials/incident_row.html" %}{% endfor %}
   <div class="empty">Todavía no hay accidentes registrados.</div>
 </div>
+</section>
 {% endblock %}

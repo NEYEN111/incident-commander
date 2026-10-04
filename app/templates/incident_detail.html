@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block page_surface %}accident-page accident-detail{% endblock %}
 {% block content %}
 {% set _role = effective_role(current_user) %}
 {% set _can_manage = _role and _role.value in ("admin", "incident_commander") %}
@@ -45,7 +46,8 @@
 
         <h2 class="section-title">Datos del accidente</h2>
         <dl class="kv">
-          {% for name, spec in road_fields.items() %}
+          {% for name in ['date', 'time', 'latitude', 'longitude'] %}
+          {% set spec = road_fields[name] %}
           <dt>{{ spec.label }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
           {% endfor %}
         </dl>
@@ -74,7 +76,7 @@
       {% include "partials/incident_prediction.html" %}
 
       {% if _can_manage %}
-      <details class="section" style="margin-top:22px; padding-top:18px">
+      <details class="section" id="operational-edit" style="margin-top:22px; padding-top:18px">
         <summary style="cursor:pointer;font-weight:600">Editar accidente</summary>
         <form method="post" action="/incidents/{{ i.id }}/edit" style="margin-top:.75rem">
           <div style="margin-bottom:.5rem">
@@ -93,7 +95,7 @@
               {% endfor %}
             </select>
           </div>
-          {% with road_data=road_values(i), field_prefix='edit' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+          {% with road_data=road_values(i), field_prefix='edit', road_field_names=['date', 'time', 'latitude', 'longitude'], road_section_title='Fecha y ubicación' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
           <button class="btn" type="submit">Guardar cambios</button>
         </form>
       </details>

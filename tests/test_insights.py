@@ -215,3 +215,39 @@ def test_empty_and_monthly_all_time_evolution(db_session):
         "2026-03": 0,
         "2026-04": 1,
     }
+
+
+@pytest.mark.parametrize("span, granularity", [(6, "Diaria"), (120, "Mensual")])
+def test_evolution_keeps_zero_intervals_and_counts_analyzed_accidents_once(
+    db_session, user, span, granularity
+):
+    start = date(2026, 1, 1)
+    first = accident(db_session, date=start)
+    accident(db_session, date=start)
+    last = accident(db_session, date=start + timedelta(days=span))
+    undated = accident(db_session, date=None)
+    now = datetime.now(UTC)
+    prediction(db_session, first, user, "Fatal", now)
+    prediction(db_session, first, user, "Leve", now + timedelta(hours=1))
+    prediction(db_session, last, user, "Grave", now)
+    prediction(db_session, undated, user, "Leve", now)
+    data = insights.compute_insights(db_session, since=None)
+    timeline = data["timeline"]
+    assert timeline["granularity"] == granularity
+    assert data["with_prediction"] == 3
+    assert timeline["dated_total"] == 3 and timeline["predicted_total"] == 2
+    assert timeline["rows"][0]["count"] == 2
+    assert timeline["rows"][0]["predicted_count"] == 1
+    assert timeline["rows"][-1]["predicted_count"] == 1
+    assert all(row["count"] == row["predicted_count"] == 0 for row in timeline["rows"][1:-1])
+    assert sum(row["predicted_count"] for row in timeline["rows"]) == 2
+    assert all(row["count"] >= row["predicted_count"] for row in timeline["rows"])
+
+
+def test_model_metadata_unavailable_or_invalid_is_not_fabricated(tmp_path):
+    path = tmp_path / "missing.json"
+    assert insights.load_model_metadata(path) is None
+    path.write_text("not json", encoding="utf-8")
+    assert insights.load_model_metadata(path) is None
+    path.write_text("[]", encoding="utf-8")
+    assert insights.load_model_metadata(path) is None

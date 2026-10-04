@@ -3,12 +3,21 @@
   "use strict";
   const status = document.getElementById("map-status");
   const error = document.getElementById("map-error");
+  const empty = document.getElementById("map-empty");
   const filters = document.getElementById("map-filters");
   if (typeof L === "undefined" || typeof L.markerClusterGroup !== "function") {
     status.textContent = "No se pudo cargar el mapa. Recarga la página.";
     return;
   }
-  const map = L.map("accident-map").setView([20, 0], 2);
+  const map = L.map("accident-map", {
+    zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
+  }).setView([20, 0], 2);
+  map.zoomControl.setPosition("topleft");
+  const zoomButtons = document.querySelectorAll("#accident-map .leaflet-control-zoom a");
+  ["Acercar", "Alejar"].forEach((label, index) => {
+    zoomButtons[index].setAttribute("aria-label", label);
+    zoomButtons[index].setAttribute("title", label);
+  });
   const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -19,31 +28,62 @@
   });
   const clusterOptions = {
     showCoverageOnHover: false, spiderfyOnMaxZoom: true, chunkedLoading: true,
+    animate: false,
+    iconCreateFunction(cluster) {
+      const count = cluster.getChildCount();
+      return L.divIcon({
+        className: "map-cluster", iconSize: [44, 44], iconAnchor: [22, 22],
+        html: `<span role="img" aria-label="${count} accidentes agrupados">${count}</span>`,
+      });
+    },
   };
   let clusters = L.markerClusterGroup(clusterOptions).addTo(map);
   const zones = {1: "Urbana", 2: "Rural", 3: "No determinada"};
+  // Match the existing ui_es labels without changing stored or API status values.
+  const statusLabels = {
+    Triage: "Pendiente", Investigating: "En atención", Identified: "Identificado",
+    Monitoring: "En seguimiento", Closed: "Cerrado",
+  };
   const colors = {Fatal: "fatal", Grave: "grave", Leve: "leve"};
+  const symbols = {Fatal: "F", Grave: "G", Leve: "L"};
   let pending;
 
   function popup(accident) {
     const box = document.createElement("div");
-    const title = document.createElement("strong");
+    box.className = "map-popup";
+    const title = document.createElement("h2");
+    title.className = "map-popup-title";
     title.textContent = accident.title || `Accidente ${accident.id}`;
     box.append(title);
+    const facts = document.createElement("dl");
     function line(label, value) {
-      const text = document.createElement("p");
-      text.textContent = `${label}: ${value}`;
-      box.append(text);
+      const term = document.createElement("dt"), text = document.createElement("dd");
+      term.textContent = label;
+      text.textContent = value;
+      facts.append(term, text);
     }
     line("Fecha", accident.date ? accident.date.split("-").reverse().join("/") : "Sin datos");
     line("Hora", accident.time || "Sin datos");
     line("Zona", zones[accident.urban_or_rural_area] || "Sin datos");
+    line("Prioridad operativa", accident.operational_priority || "Sin datos");
+    line("Estado", Object.hasOwn(statusLabels, accident.status)
+      ? statusLabels[accident.status] : accident.status || "Sin datos");
+    box.append(facts);
     const latest = accident.latest_prediction;
-    line("Última predicción ML", latest ? latest.prediction : "Sin predicción");
+    const result = document.createElement("p"), label = document.createElement("span");
+    result.className = "map-popup-result";
+    result.append(document.createTextNode("Última predicción ML: "));
+    label.className = `map-popup-severity ${colors[latest?.prediction] || "neutral"}`;
+    label.textContent = latest ? latest.prediction : "Sin predicción ML";
+    result.append(label);
+    box.append(result);
     if (latest) {
       const probabilities = latest.probabilities;
-      line("Probabilidades estimadas", ["Fatal", "Grave", "Leve"]
-        .map(name => `${name} ${(probabilities[name] * 100).toFixed(1)}%`).join(" · "));
+      const probabilitiesLine = document.createElement("p");
+      probabilitiesLine.className = "map-popup-probabilities";
+      probabilitiesLine.textContent = "Probabilidades estimadas: " + ["Fatal", "Grave", "Leve"]
+        .map(name => `${name} ${(probabilities[name] * 100).toFixed(1).replace(".", ",")} %`).join(" · ");
+      box.append(probabilitiesLine);
     }
     const link = document.createElement("a");
     link.href = `/incidents/${encodeURIComponent(accident.id)}`;
@@ -61,7 +101,9 @@
       if (value !== "") params.set(name, value);
     }
     status.textContent = "Cargando accidentes…";
+    document.getElementById("accident-map").setAttribute("aria-busy", "true");
     error.hidden = true;
+    empty.hidden = true;
     try {
       const response = await fetch(`/maps/incidents.json?${params}`, {
         signal: request.signal, headers: {Accept: "application/json"},
@@ -80,10 +122,13 @@
         const severity = accident.latest_prediction?.prediction;
         const icon = L.divIcon({
           className: `accident-marker ${colors[severity] || "neutral"}`,
-          html: '<span aria-hidden="true"></span>', iconSize: [22, 22], iconAnchor: [11, 11],
+          html: `<span aria-hidden="true">${symbols[severity] || "—"}</span>`,
+          iconSize: [44, 44], iconAnchor: [22, 22],
         });
-        return L.marker([accident.latitude, accident.longitude], {icon})
-          .bindPopup(popup(accident));
+        const name = `${accident.title || `Accidente ${accident.id}`} · ${severity || "Sin predicción ML"}`;
+        return L.marker([accident.latitude, accident.longitude], {icon, title: name})
+          .on("add", function () { this.getElement().setAttribute("aria-label", name); })
+          .bindPopup(popup(accident), {maxWidth: 320, minWidth: 240});
       });
       map.removeLayer(clusters);
       clusters = L.markerClusterGroup(clusterOptions).addTo(map);
@@ -94,12 +139,20 @@
         });
       }
       status.textContent = `${data.count} ${data.count === 1 ? "accidente encontrado" : "accidentes encontrados"}`;
+      if (!markers.length) {
+        empty.textContent = params.size
+          ? "No hay accidentes con coordenadas que coincidan con estos filtros."
+          : "No hay accidentes con coordenadas registradas para mostrar.";
+        empty.hidden = false;
+      }
     } catch (failure) {
       if (failure.name === "AbortError" || pending !== request) return;
       clusters.clearLayers();
       status.textContent = "No se pudieron cargar los accidentes.";
       error.hidden = false;
       error.textContent = failure.message;
+    } finally {
+      if (pending === request) document.getElementById("accident-map").setAttribute("aria-busy", "false");
     }
   }
   filters.addEventListener("submit", event => { event.preventDefault(); load(); });

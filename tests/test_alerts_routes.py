@@ -43,9 +43,20 @@ def test_inbox_renders_sidebar_when_authenticated(client, db_session):
     # Regression: the inbox route must pass current_user so base.html renders the
     # left sidebar nav (it was missing, leaving the page without navigation).
     _login(client, db_session, "ic@x.io", Role.incident_commander)
-    html = client.get("/alerts").text
-    assert 'class="sidebar"' in html
-    assert 'href="/systems"' in html  # a sidebar nav link (only in the authenticated shell)
+    response = client.get("/alerts")
+    assert response.status_code == 200
+    html = response.text
+    assert '<aside class="pilot-sidebar" aria-label="Barra lateral">' in html
+    assert 'aria-label="Navegación principal"' in html
+    for route in ("/", "/maps", "/insights", "/follow-ups", "/account/password", "/logout"):
+        assert f'href="{route}"' in html
+    assert "ic@x.io" in html
+    # SRE catalog navigation is intentionally hidden, not removed from the backend.
+    assert 'href="/systems"' not in html
+    assert client.get("/systems").status_code == 200
+    for route in ("/users", "/groups", "/settings"):
+        assert f'href="{route}"' not in html
+        assert client.get(route).status_code == 403
 
 
 def test_login_page_renders_without_sidebar_when_unauthenticated(client, db_session):
@@ -55,7 +66,9 @@ def test_login_page_renders_without_sidebar_when_unauthenticated(client, db_sess
     _login(client, db_session, "ic@x.io", Role.incident_commander)
     client.post("/logout")
     html = client.get("/login").text
-    assert 'class="sidebar"' not in html
+    assert 'aria-label="Barra lateral"' not in html
+    assert 'aria-label="Navegación principal"' not in html
+    assert "ic@x.io" not in html
 
 
 def test_readonly_cannot_declare(client, db_session):

@@ -1,26 +1,26 @@
 {% extends "base.html" %}
+{% block title %}Usuarios · {{ app_name }}{% endblock %}
+{% block page_surface %}support-page {% endblock %}
 {% block content %}
-<div class="page-head">
-  <h1>Usuarios</h1>
-  <span class="stats">{{ users | length }} total</span>
-</div>
+<link rel="stylesheet" href="/static/support-pages.css?v=1">
+<div class="page-head"><h1>Usuarios</h1><span class="stats">{{ users | length }} total</span></div>
 <p class="page-sub">Administra usuarios, grupos y permisos de acceso.</p>
-
-<div class="card">
-  <h2>Crear usuario</h2>
-  <form class="form-row" method="post" action="/users">
-    <input class="grow" name="email" type="email" placeholder="Correo electrónico" required autocomplete="off">
-    <input name="name" placeholder="Nombre" required autocomplete="off">
-    <select name="role" aria-label="Rol">{% for r in roles %}<option value="{{ r.value | ui_es }}">{{ r.value | ui_es }}</option>{% endfor %}</select>
+<section class="card" aria-labelledby="create-user-title">
+  <h2 id="create-user-title">Crear usuario</h2>
+  <form class="form-row compact-form" method="post" action="/users">
+    <label class="field-block"><span>Correo electrónico</span><input name="email" type="email" required autocomplete="off"></label>
+    <label class="field-block"><span>Nombre</span><input name="name" required autocomplete="off"></label>
+    <label class="field-block"><span>Rol</span><select name="role">{% for r in roles %}<option value="{{ r.value }}">{{ r.value | ui_es }}</option>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">Crear usuario</button>
   </form>
-  <p class="muted" style="margin:10px 0 0; font-size:12.5px">Se genera una contraseña temporal que se muestra una sola vez. El usuario deberá cambiarla al iniciar sesión.</p>
-</div>
-
-<div class="card">
-  <h2>Usuarios registrados</h2>
+  <p class="help">Con SMTP configurado se envía una invitación. En caso contrario, se muestra una contraseña temporal una sola vez; el usuario deberá cambiarla al iniciar sesión.</p>
+</section>
+<section class="card" aria-labelledby="users-title">
+  <h2 id="users-title">Usuarios registrados</h2>
+  <p class="page-sub" id="groups-help">Para seleccionar varios grupos, mantén Ctrl mientras seleccionas las opciones.</p>
+  <div class="table-scroll" role="region" aria-labelledby="users-title" tabindex="0">
   <table>
-    <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Grupos</th><th></th></tr></thead>
+    <thead><tr><th scope="col">Correo</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Activo</th><th scope="col">Grupos</th><th scope="col">Acciones</th></tr></thead>
     <tbody>
     {% for u in users %}
       {% set er = effective_role(u) %}
@@ -28,26 +28,26 @@
       <tr>
         <td>{{ u.email }}{% if u.is_protected_admin %} <span class="muted">· protegido</span>{% endif %}</td>
         <td>{{ u.name }}</td>
-        <td>{% if er %}<span class="role" data-role="{{ er.value | ui_es }}">{{ er.value | ui_es }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if er %}<span class="role">{{ er.value | ui_es }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         <td>{% if u.is_active %}<span class="badge-yes">activo</span>{% else %}<span class="badge-no">inactivo</span>{% endif %}</td>
         <td>
-          <form class="form-row" method="post" action="/users/{{ u.id }}/groups">
-            <select name="group_ids" multiple size="{{ groups | length }}">
+          <form class="user-groups" method="post" action="/users/{{ u.id }}/groups">
+            <select name="group_ids" multiple size="{{ [groups | length, 4] | min }}" aria-label="Grupos de {{ u.name }}" aria-describedby="groups-help">
               {% for g in groups %}
                 <option value="{{ g.id }}" {% if g.id in member_ids %}selected{% endif %}>{{ g.name | ui_es }}</option>
               {% endfor %}
             </select>
-            <button class="btn btn-sm" type="submit">Guardar</button>
+            <button class="btn btn-sm" type="submit" aria-label="Guardar grupos de {{ u.name }}">Guardar</button>
           </form>
         </td>
         <td>{% if not u.is_protected_admin and u.is_active %}
-          <form method="post" action="/users/{{ u.id }}/deactivate"><button class="btn btn-sm">Desactivar</button></form>
+          <form method="post" action="/users/{{ u.id }}/deactivate"><button class="btn btn-sm btn-danger" type="submit" aria-label="Desactivar a {{ u.name }}">Desactivar</button></form>
         {% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-</div>
-
-<p><a class="backlink" href="/groups">→ Administrar grupos</a></p>
+  </div>
+</section>
+<p><a class="backlink" href="/groups">Administrar grupos</a></p>
 {% endblock %}

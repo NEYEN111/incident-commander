@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import Incident, IntegrationState, StatusCategory, StatusLevel
 from app.road_fields import validate_road_data
@@ -80,7 +80,11 @@ def create_incident(
 
 
 def list_incidents(db: Session) -> list[Incident]:
-    stmt = select(Incident).order_by(Incident.created_at.desc(), Incident.id.desc())
+    stmt = (
+        select(Incident)
+        .options(joinedload(Incident.severity_level), joinedload(Incident.status))
+        .order_by(Incident.created_at.desc(), Incident.id.desc())
+    )
     return list(db.scalars(stmt))
 
 

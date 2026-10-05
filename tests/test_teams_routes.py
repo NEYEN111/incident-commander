@@ -1,11 +1,9 @@
-import pytest
+﻿import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from app.db import get_db
 from app.main import create_app
-from app.models import Role, System
-from app.services import teams
+from app.models import Role
 from app.services.users import bootstrap_admin, create_user
 
 
@@ -23,15 +21,13 @@ def _login(client, db_session, email, role):
     client.post("/login", data={"email": email, "password": "pw-123456"})
 
 
-def test_ic_creates_system_with_owner(client, db_session):
+def test_removed_systems_route_returns_404(client, db_session):
     _login(client, db_session, "ic@x.io", Role.incident_commander)
-    t = teams.create_team(db_session, name="Payments")
-    db_session.commit()
-    r = client.post(
+
+    response = client.post(
         "/systems",
-        data={"name": "Checkout", "owner_team_id": str(t.id)},
+        data={"name": "Checkout", "owner_team_id": "1"},
         follow_redirects=False,
     )
-    assert r.status_code == 303
-    s = db_session.scalar(select(System).where(System.name == "Checkout"))
-    assert s.owner_team_id == t.id
+
+    assert response.status_code == 404

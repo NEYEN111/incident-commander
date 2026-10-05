@@ -2,6 +2,34 @@
 
 APP_NAME = "Sistema de Gestión de Accidentes Viales"
 
+
+def priority_display(level) -> str:
+    """Explain configured levels without inventing high/medium/low semantics."""
+    return priority_label(level.label, level.rank) if level is not None else "Sin asignar"
+
+
+def priority_label(label, rank) -> str:
+    if label is None:
+        return "Sin asignar"
+    if label in ("SEV1", "SEV2", "SEV3"):
+        return f"Nivel {rank} ({label})"
+    return label
+
+
+FEATURE_LABELS = {
+    "day_of_week": "Día de la semana",
+    "hour": "Hora",
+    "road_type": "Tipo de vía",
+    "speed_limit": "Límite de velocidad",
+    "urban_or_rural_area": "Zona urbana o rural",
+    "light_conditions": "Condiciones de iluminación",
+    "weather_conditions": "Condiciones meteorológicas",
+    "road_surface_conditions": "Estado de la superficie",
+    "number_of_vehicles": "Número de vehículos",
+    "junction_detail": "Tipo de intersección",
+    "first_road_class": "Clase de la vía",
+}
+
 _LABELS = {
     "triage": "Pendiente",
     "active": "En atención",
@@ -34,7 +62,7 @@ _LABELS = {
     "Incident closed.": "Accidente cerrado.",
     "Incident reopened.": "Accidente reabierto.",
     "Invalid credentials": "Correo o contraseña incorrectos",
-    "Local login is disabled — sign in with SSO.": "El acceso con contraseña está desactivado. Utiliza SSO.",
+    "Local login is disabled — sign in with SSO.": "El acceso con contraseña está desactivado. Inicia sesión con tu proveedor de acceso.",
     "Passwords must match and be at least 8 chars": "Las contraseñas deben coincidir y tener al menos 8 caracteres",
     "Note cannot be empty": "La nota no puede estar vacía",
     "Update message cannot be empty": "La actualización no puede estar vacía",

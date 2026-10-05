@@ -90,9 +90,18 @@ def test_insights_empty_state_and_model_metadata_fallback(client, db_session, mo
     assert "Variables utilizadas</dt><dd>11" in response.text
     assert "Árboles</dt><dd>150" in response.text
     assert "Evaluación del modelo entrenado" in response.text
-    assert "STATS19" in response.text and "20305 para test" in response.text
+    assert "STATS19" in response.text and "20305 para prueba" in response.text
     for value in ("0,5577", "0,3663", "0,4618", "0,6259"):
-        assert f"<dd>{value}</dd>" in response.text
+        assert f"<dd>{value}<span" in response.text
+    assert "Proporción general de aciertos" in response.text
+    visible = re.sub(r"<[^>]+>", " ", response.text)
+    for internal_name in (
+        "day_of_week",
+        "urban_or_rural_area",
+        "junction_detail",
+        "first_road_class",
+    ):
+        assert internal_name not in visible
     assert "no son las estadísticas de los accidentes registrados" in response.text
     monkeypatch.setattr("app.routers.insights.load_model_metadata", lambda: None)
     response = client.get("/insights")
@@ -161,8 +170,8 @@ def test_insights_summary_distribution_and_series_use_latest_real_records(client
         row = distribution.split(f'data-ml-class="{label}"', 1)[1].split("</li>", 1)[0]
         assert f"width: {percentage}%" in row
         assert f"{percentage.replace('.', ',')} %" in row
-    assert "Total de accidentes: 2" in html and "Con predicción ML: 1" in html
+    assert "Total de accidentes: 2" in html and "Analizados con ML: 1" in html
     assert "<td>2</td><td>1</td>" in html
     assert "Sin datos" in html
-    assert "independiente de la prioridad operativa" in html
-    assert "SEV1 / SEV2 / SEV3 expresan prioridad operativa" in html
+    assert "independiente de la prioridad de atención" in html
+    assert "los niveles de atención son decisiones humanas configurables" in html

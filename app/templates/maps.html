@@ -9,15 +9,15 @@
 <div class="accident-map-page">
   <header class="map-header">
     <h1>Mapa de accidentes</h1>
-    <p>Explora la ubicación de los accidentes y su última predicción de gravedad.</p>
+    <p>Muestra dónde se encuentran los accidentes registrados y la última gravedad estimada por el modelo.</p>
   </header>
   <form id="map-filters" class="map-filters" aria-label="Filtros del mapa">
     <label for="map-from">Desde<input id="map-from" type="date" name="date_from"></label>
     <label for="map-to">Hasta<input id="map-to" type="date" name="date_to"></label>
-    <label for="map-prediction">Predicción ML
+    <label for="map-prediction">Gravedad estimada
       <select id="map-prediction" name="prediction">
         <option value="">Todas</option><option>Fatal</option><option>Grave</option><option>Leve</option>
-        <option value="none">Sin predicción</option>
+        <option value="none">Sin análisis ML</option>
       </select>
     </label>
     <label for="map-zone">Zona
@@ -27,23 +27,23 @@
       </select>
     </label>
     <button class="map-apply" type="submit">Aplicar filtros</button>
-    <button class="map-clear" type="reset">Limpiar</button>
+    <button class="map-clear" type="reset">Limpiar filtros</button>
   </form>
   <div class="map-summary">
     <p id="map-status" role="status" aria-live="polite" aria-atomic="true">Cargando accidentes…</p>
-    <ul class="accident-legend" aria-label="Última predicción ML">
+    <ul class="accident-legend" aria-label="Última gravedad estimada por Machine Learning">
       <li><span class="fatal" aria-hidden="true">F</span>Fatal</li>
       <li><span class="grave" aria-hidden="true">G</span>Grave</li>
       <li><span class="leve" aria-hidden="true">L</span>Leve</li>
-      <li><span class="neutral" aria-hidden="true">—</span>Sin predicción</li>
+      <li><span class="neutral" aria-hidden="true">—</span>Sin análisis ML</li>
     </ul>
   </div>
   <p id="map-error" role="alert" hidden></p>
   <p id="map-empty" hidden></p>
   <div id="accident-map" aria-label="Mapa geográfico de accidentes" aria-describedby="map-help"></div>
-  <p id="map-help" class="map-help">Solo se muestran accidentes con coordenadas registradas. La predicción ML es independiente de la prioridad operativa. El mapa base requiere conexión a Internet.</p>
+  <p id="map-help" class="map-help">Solo se muestran accidentes con coordenadas registradas. La gravedad estimada por ML es independiente de la prioridad de atención. El mapa no predice dónde ocurrirán futuros accidentes. El mapa base requiere conexión a Internet.</p>
 </div>
 <script src="/static/vendor/leaflet/leaflet.js" defer></script>
 <script src="/static/vendor/leaflet.markercluster/leaflet.markercluster.js" defer></script>
-<script src="/static/accident-map.js?v=3" defer></script>
+<script src="/static/accident-map.js?v=4" defer></script>
 {% endblock %}

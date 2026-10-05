@@ -1,10 +1,11 @@
 # Sistema de diseño · Gestión de accidentes viales
 
-**Estado:** propuesta previa a implementación. **Rama:** `feature/visual-redesign`.
-**Base revisada:** `1bc5ceb083e6bfb217cb729d7c70f43b2bf1111c`.
+**Estado:** dirección visual implementada; reglas vigentes para mantenimiento. **Rama:** `feature/visual-redesign`.
+**Diagnóstico inicial:** `1bc5ceb083e6bfb217cb729d7c70f43b2bf1111c`.
+**Cierre de implementación:** `2f1c0ece87bff629479f19839f1541d784dc7b94`.
 
 Este documento define la dirección visual; no cambia pantallas, rutas, permisos,
-contratos, datos ni comportamiento. Los tokens son propuestas, no CSS aplicado.
+contratos, datos ni comportamiento por sí mismo. Los tokens son la referencia de la interfaz aplicada.
 Stack: **FastAPI + Jinja2 + HTMX + CSS + JavaScript**. Mantener las dependencias
 locales y el modelo ML existente, sin introducir un framework para rediseñar.
 
@@ -28,7 +29,7 @@ literalmente. La identidad propia combina una paleta neutral, azul de interacci�
 y semántica vial constante. Evitar un dashboard compuesto exclusivamente por
 mosaicos de tarjetas idénticas, grandes números sin contexto y gráficos ornamentales.
 
-## 2. Diagnóstico de la interfaz actual
+## 2. Diagnóstico inicial (histórico, previo a la implementación)
 
 Revisión de `app/static/app.css`, `base.html`, login, índice/listado, detalle,
 partials de campos viales y predicción, mapa, estadísticas, seguimiento y configuración.
@@ -53,8 +54,8 @@ colores ambiguos, distribución del registro y estilos locales repetidos.
 
 ## 3. Tokens iniciales
 
-Nombres propuestos para una futura capa de tokens. Migrar después las variables
-actuales a estos roles; no limitar el cambio a invertir los colores del tema oscuro.
+Referencia de roles y valores para la capa visual implementada. Los nombres pueden
+variar en el CSS existente; conservar sus usos semánticos y evitar volver al tema oscuro.
 
 ### 3.1 Colores
 
@@ -213,13 +214,13 @@ esta pantalla; no recalcular sus métricas en Jinja2. No añadir mapa duplicado 
 
 ### Lista de accidentes
 
-Cabecera con «Registrar accidente» para usuarios gestores. Propuesta posterior:
-presentar el registro como bloque desplegable separado del listado, conservando
+Cabecera con «Registrar accidente» para usuarios gestores. El registro está implementado
+como bloque desplegable, plegado por defecto y separado del listado, conservando
 el POST y sin requerir una ruta nueva. Filas blancas separadas por líneas suaves,
 con título/ID, fecha del accidente, hora, zona y estado de gestión. Prioridad operativa
 con etiqueta completa y estilo neutral; sin una franja roja que parezca predicción ML.
-Si se muestra ML en esta pantalla en el futuro, utilizar un campo separado con el
-prefijo «ML» y solo cuando el backend entregue la última predicción; no consultar
+El listado muestra un campo separado con el prefijo «ML»: Fatal, Grave, Leve o Pendiente.
+El backend entrega la última predicción mediante una consulta conjunta; no consultar
 por fila ni derivar su gravedad de `severity_level`.
 Acciones de fila discretas; cierre no debe dominar. En anchos pequeños, filas apiladas con
 la información esencial visible y metadatos secundarios en una segunda línea.
@@ -247,8 +248,9 @@ Acciones al final, sin una barra fija que oculte campos al abrir el teclado en A
 
 Cabecera con título, fecha del accidente, estado y «Prioridad operativa: …» explícito.
 La fecha de registro administrativo sigue separada. Mantener organización existente
-Resumen, Roles, Cronología y Seguimiento; al implementar accesibilidad, navegación
-por teclado coherente en las pestañas. Datos viales en pares etiqueta/valor, sin
+Resumen, Roles, Cronología y Seguimiento. Las pestañas tienen selección ARIA, foco
+controlado y navegación con flechas, Inicio y Fin; sin JavaScript conservan los radios nativos.
+Datos viales en pares etiqueta/valor, sin
 meter cada campo en una tarjeta. Edición contextual y reconocible.
 En laptop y PC, sección ML junto o después de los datos relevantes según espacio;
 en anchos pequeños, apilada antes de las acciones de edición. Cronología legible y compacta,
@@ -345,10 +347,10 @@ Los demás anchos requieren adaptación fluida sin romperse.
 | Android: compatibilidad básica, referencia 360–430 px | Cabecera compacta y botón «Menú»; navegación utilizable sin enlaces envueltos horizontalmente | Una columna, gutter 16 px, formularios básicos utilizables y controles táctiles de mínimo 44 × 44 px; sin optimización visual avanzada |
 | Otros anchos: adaptación fluida; por debajo de 1024 px | Cabecera compacta y menú, sin sidebar permanente | Gutter adaptable de 16–24 px, columnas solo cuando sean legibles; sin experiencia especial de tablet ni overflow |
 
-Drawer futuro: cierre con Escape y botón visible, foco inicial y retorno al botón
+El menú compacto actual usa `details/summary`. Un drawer futuro requeriría cierre con Escape y botón visible, foco inicial y retorno al botón
 que lo abrió, fondo no interactivo y orden de tabulación controlado. No implementarlo
-en esta fase documental. Evitar una fila móvil de seis destinos que se envuelva
-sin jerarquía, como ocurre con la navegación actual.
+sin aprobación adicional. Evitar una fila móvil de seis destinos que se envuelva
+sin jerarquía, como ocurría con la navegación original.
 
 - Priorizar la validación visual de laptop en 1024, 1280, 1366 y 1440 px,
   seguida de PC en pantallas grandes. En Android (referencia 360–430 px), comprobar
@@ -430,7 +432,7 @@ sobre fondos suaves ni bajar opacidad de textos importantes.
 - No modificar validaciones, rutas o permisos de forma incidental al cambiar estilos.
 - No añadir Open-Meteo, fotos, heatmap o una nueva funcionalidad bajo el rediseño.
 
-## 10. Orden propuesto para la fase de implementación posterior
+## 10. Orden original de implementación (histórico)
 
 1. Aprobar tokens y ejemplos estáticos de Login, listado y detalle antes de extender
    el estilo. No instalar herramientas o skills por este documento.
@@ -441,7 +443,7 @@ sobre fondos suaves ni bajar opacidad de textos importantes.
 5. Ajustar navegación responsive, mapa y gráficos; verificar teclado y contrastes.
 6. Evaluar Resumen como alcance separado si se aprueba ruta y provisión de datos.
 
-Criterio de aceptación futuro: ningún cambio en resultados ML, snapshots, prioridad
+Criterio de mantenimiento: ningún cambio en resultados ML, snapshots, prioridad
 operativa, filtros temporales ni datos originales; mismo flujo funcional, mejor
 legibilidad y navegación. Documentar los fallos heredados de UI para distinguirlos
 de regresiones. Este archivo no autoriza implementaciones, commit ni push por sí solo.

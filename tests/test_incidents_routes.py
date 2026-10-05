@@ -1,10 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event, select
+from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.main import create_app
-from app.models import Role, SeverityLevel
+from app.models import Incident, Role, SeverityLevel, StatusCategory, StatusLevel
 from app.services import statuses
+from app.services.incidents import list_incidents
 from app.services.users import bootstrap_admin, create_user
 
 
@@ -31,6 +34,40 @@ def _sev(db_session):
     return lvl.id
 
 
+def test_list_loads_priority_and_status_without_per_row_queries(db_session):
+    statuses.seed_status_levels(db_session)
+    states = list(db_session.scalars(select(StatusLevel).order_by(StatusLevel.rank)))[:3]
+    for index, state in enumerate(states):
+        priority = SeverityLevel(label=f"P{index}", color="#000000", rank=index)
+        db_session.add(priority)
+        db_session.flush()
+        db_session.add(
+            Incident(
+                title=f"Accidente {index}",
+                severity_level_id=priority.id,
+                status_id=state.id,
+                creation_state={},
+            )
+        )
+    db_session.commit()
+    queries = []
+
+    def count_select(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            queries.append(statement)
+
+    with Session(db_session.get_bind()) as fresh:
+        connection = fresh.connection()
+        event.listen(connection, "before_cursor_execute", count_select)
+        try:
+            rows = list_incidents(fresh)
+            assert len(rows) == 3
+            assert all(row.severity_level.label and row.status.label for row in rows)
+            assert len(queries) == 1, f"Consultas SELECT observadas: {len(queries)}"
+        finally:
+            event.remove(connection, "before_cursor_execute", count_select)
+
+
 def test_readonly_cannot_create(client, db_session):
     _login(client, db_session, "ro@x.io", Role.read_only)
     sev_id = _sev(db_session)
@@ -45,6 +82,7 @@ def test_readonly_cannot_create(client, db_session):
 def test_ic_can_create_and_close(client, db_session):
     _login(client, db_session, "ic@x.io", Role.incident_commander)
     sev_id = _sev(db_session)
+    assert "Todavía no hay accidentes registrados." in client.get("/").text
     r = client.post(
         "/incidents",
         data={"title": "Checkout down", "severity_level_id": str(sev_id)},
@@ -53,14 +91,23 @@ def test_ic_can_create_and_close(client, db_session):
     assert r.status_code == 200
     assert "Checkout down" in r.text
     # list shows it
-    assert "Checkout down" in client.get("/").text
+    listed = client.get("/").text
+    assert "Checkout down" in listed
+    assert "Todavía no hay accidentes registrados." not in listed
     # close it (find id via detail listing)
     from app.services.incidents import list_incidents
 
     inc = list_incidents(db_session)[0]
+    detail = client.get(f"/incidents/{inc.id}").text
+    assert 'href="#operational-edit"' in detail and 'id="operational-edit"' in detail
+    assert 'href="#edit-date"' not in detail
     r2 = client.post(f"/incidents/{inc.id}/close", headers={"HX-Request": "true"})
     assert r2.status_code == 200
-    assert "closed" in r2.text.lower()
+    db_session.refresh(inc)
+    assert inc.is_closed and inc.closed_at is not None
+    assert inc.status.category == StatusCategory.closed
+    assert "Cerrado" in r2.text
+    assert f'action="/incidents/{inc.id}/close"' not in r2.text
 
 
 def test_create_incident_with_system_and_component(client, db_session):

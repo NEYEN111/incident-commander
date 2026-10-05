@@ -1,32 +1,32 @@
 <section class="section ml-analysis" id="ml-prediction" aria-labelledby="ml-analysis-title">
   {% set ml_ready = i.date is not none and i.time is not none %}
-  <h2 id="ml-analysis-title">Análisis de gravedad con ML</h2>
+  <h2 id="ml-analysis-title">Análisis de gravedad con Machine Learning</h2>
   {% if notice %}<p class="ml-feedback{% if notice != 'Predicción ML guardada.' %} ml-feedback-error{% endif %}" role="status">{{ notice | ui_es }}</p>{% endif %}
-  <p class="accident-help">Completa los datos necesarios para estimar la gravedad del accidente.</p>
+  <p class="accident-help">Completa las características del accidente para que el modelo estime su gravedad. Machine Learning (ML) utiliza 11 datos: nueve características y el día de la semana y la hora.</p>
   {% if not ml_ready %}
   <p class="ml-date-warning" id="ml-date-warning" role="status">Completa la fecha y la hora del accidente antes de analizar.</p>
   {% endif %}
   <p class="ml-date-context">Fecha: {{ road_display('date', i.date) }} · Hora: {{ road_display('time', i.time) }}.<br>
-    El día de la semana y la hora del modelo se derivan automáticamente de estos datos.
-    {% if _can_manage %}<a href="#edit-date" onclick="document.getElementById('operational-edit').open = true">Editar fecha y hora</a>{% endif %}
+    Día de la semana y hora se obtienen automáticamente de la fecha y hora registradas.
+    {% if _can_manage %}<a href="#operational-edit" onclick="document.getElementById('operational-edit').open = true">Editar fecha y hora</a>{% endif %}
   </p>
   {% if _can_manage %}
   <form class="ml-analysis-form accident-data" method="post" action="/incidents/{{ i.id }}/predict">
     {% with road_data=road_values(i), field_prefix='ml', road_field_names=['road_type', 'speed_limit', 'first_road_class', 'junction_detail'], road_section_title='Vía', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
-    <p class="accident-help" id="ml-speed-help">Velocidad en mph, según las categorías admitidas por el modelo.{% if i.speed_limit is not none and i.speed_limit not in [20, 30, 40, 50, 60, 70] %} El valor registrado ({{ i.speed_limit }} mph) no es compatible; selecciona una velocidad admitida para analizar.{% endif %}</p>
+    <p class="accident-help" id="ml-speed-help">Velocidad en millas por hora (mph), la unidad utilizada en los datos británicos del modelo.{% if i.speed_limit is not none and i.speed_limit not in [20, 30, 40, 50, 60, 70] %} El valor registrado ({{ i.speed_limit }} mph) no es compatible; selecciona una velocidad admitida para analizar.{% endif %}</p>
     {% with road_data=road_values(i), field_prefix='ml', road_field_names=['urban_or_rural_area', 'light_conditions', 'weather_conditions', 'road_surface_conditions'], road_section_title='Entorno', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
     {% with road_data=road_values(i), field_prefix='ml', road_field_names=['number_of_vehicles'], road_section_title='Accidente', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
-    <button class="btn btn-primary" type="submit"{% if not ml_ready %} disabled aria-describedby="ml-date-warning"{% endif %}>{{ 'Volver a analizar' if latest_prediction else 'Analizar con ML' }}</button>
+    <button class="btn btn-primary" type="submit"{% if not ml_ready %} disabled aria-describedby="ml-date-warning"{% endif %}>{{ 'Volver a estimar gravedad' if latest_prediction else 'Estimar gravedad con ML' }}</button>
   </form>
   {% else %}
   <dl class="kv">
     {% for name in ['road_type', 'speed_limit', 'first_road_class', 'junction_detail', 'urban_or_rural_area', 'light_conditions', 'weather_conditions', 'road_surface_conditions', 'number_of_vehicles'] %}
-    <dt>{{ road_fields[name].label }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
+    <dt>{{ feature_labels.get(name, road_fields[name].label) }}{{ ' (mph)' if name == 'speed_limit' else '' }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
     {% endfor %}
   </dl>
   {% endif %}
   <div class="ml-result" role="region" aria-labelledby="ml-result-title">
-  <h3 id="ml-result-title">Predicción de gravedad</h3>
+  <h3 id="ml-result-title">Gravedad estimada</h3>
   {% if latest_prediction %}
   <p class="ml-severity ml-{{ latest_prediction.predicted_severity | lower }}" aria-label="Gravedad estimada: {{ latest_prediction.predicted_severity }}">{{ latest_prediction.predicted_severity | upper }}</p>
   <p class="accident-help">Probabilidades estimadas</p>
@@ -38,11 +38,13 @@
     {% endfor %}
   </dl>
   <p class="ml-version">Modelo {{ latest_prediction.model_version }} · {{ latest_prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }}</p>
+  <p><a class="btn" href="/incidents/{{ i.id }}/predictions/{{ latest_prediction.id }}/report">Ver ficha del análisis</a></p>
   <p class="accident-help">Resultado calculado con los datos guardados en esa fecha. Editar el accidente no actualiza esta predicción; vuelve a analizar para obtener un resultado nuevo.</p>
   {% else %}
   <p class="accident-help">Todavía no hay predicciones para este accidente.</p>
   {% endif %}
-  <p class="accident-help">La predicción del modelo es independiente de la prioridad operativa.</p>
+  <p class="accident-help">El modelo selecciona como resultado la clase con mayor probabilidad estimada. No representa una certeza.</p>
+  <p class="accident-help">La gravedad estimada por ML es independiente de la prioridad de atención.</p>
   <p class="accident-help">Es una estimación del modelo y no sustituye la valoración del accidente.</p>
   </div>
   {% if previous_predictions %}
@@ -56,6 +58,7 @@
       Probabilidades estimadas: Fatal {{ '%.1f' | format(prediction.prob_fatal * 100) }}%,
       Grave {{ '%.1f' | format(prediction.prob_grave * 100) }}%,
       Leve {{ '%.1f' | format(prediction.prob_leve * 100) }}%
+      · <a href="/incidents/{{ i.id }}/predictions/{{ prediction.id }}/report">Ver ficha #{{ prediction.id }}</a>
     </li>
     {% endfor %}
   </ul>

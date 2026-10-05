@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
-from app.i18n import APP_NAME, ui_es
+from app.i18n import APP_NAME, FEATURE_LABELS, priority_display, ui_es
 from app.models import effective_role
 from app.road_fields import ROAD_FIELDS, road_display, road_values
 from app.services.markdown import render_markdown
@@ -22,7 +22,12 @@ templates = Jinja2Templates(
 # Available in every template (e.g. base.html nav gating).
 templates.env.globals["effective_role"] = effective_role
 templates.env.globals.update(
-    app_name=APP_NAME, road_fields=ROAD_FIELDS, road_values=road_values, road_display=road_display
+    app_name=APP_NAME,
+    road_fields=ROAD_FIELDS,
+    road_values=road_values,
+    road_display=road_display,
+    priority_display=priority_display,
+    feature_labels=FEATURE_LABELS,
 )
 templates.env.filters["ui_es"] = ui_es
 

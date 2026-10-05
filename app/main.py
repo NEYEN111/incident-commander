@@ -11,10 +11,7 @@ from app.config import Settings, get_settings
 from app.crypto import build_fernet, set_fernet
 from app.i18n import APP_NAME
 from app.routers import account as account_router
-from app.routers import alerts as alerts_router
 from app.routers import auth as auth_router
-from app.routers import automation as automation_router
-from app.routers import catalog as catalog_router
 from app.routers import connections as connections_router
 from app.routers import followups as followups_router
 from app.routers import groups as groups_router
@@ -24,7 +21,6 @@ from app.routers import insights as insights_router
 from app.routers import invites as invites_router
 from app.routers import maps as maps_router
 from app.routers import oidc_auth as oidc_auth_router
-from app.routers import postmortems as postmortems_router
 from app.routers import prediction as prediction_router
 from app.routers import settings as settings_router
 from app.routers import users as users_router
@@ -92,7 +88,6 @@ def create_app() -> FastAPI:
     app.include_router(oidc_auth_router.router)
     app.include_router(account_router.router)
     app.include_router(connections_router.router)
-    app.include_router(catalog_router.router)
     app.include_router(incidents_router.router)
     app.include_router(users_router.router)
     app.include_router(groups_router.router)
@@ -100,11 +95,8 @@ def create_app() -> FastAPI:
     app.include_router(invites_router.router)
     app.include_router(maps_router.router)
     app.include_router(followups_router.router)
-    app.include_router(postmortems_router.router)
     app.include_router(insights_router.router)
     app.include_router(ingest_router.router)
-    app.include_router(alerts_router.router)
-    app.include_router(automation_router.router)
     app.include_router(prediction_router.router)
     return app
 

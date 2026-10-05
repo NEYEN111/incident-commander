@@ -11,6 +11,10 @@ from app.services.users import bootstrap_admin, create_user
 @pytest.fixture
 def client(db_session, get_db_override):
     app = create_app()
+    # Exercise the retained legacy module independently of the road app's routing.
+    from app.routers.automation import router
+
+    app.include_router(router)
     app.dependency_overrides[get_db] = get_db_override
     return TestClient(app)
 

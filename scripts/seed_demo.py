@@ -60,6 +60,61 @@ FEATURES = [
 ]
 
 
+def rename_demo_labels(db: Session) -> dict:
+    """Rename recognized synthetic examples only; preserve all analysis data."""
+    aliases = {
+        f"[DEMO {index + 1:02d}] {name}": f"[DEMO] {name}"
+        for index, (name, _) in enumerate(SCENARIOS)
+    }
+    aliases.update(
+        {
+            "[DEMO FLUJO] Colisión sintética para exposición": "[DEMO] Colisión urbana para exposición",
+            "[DEMO 6C] Validación integrada final": "[DEMO] Colisión urbana en vía principal",
+        }
+    )
+    renamed = 0
+    for old, new in aliases.items():
+        incident = db.scalar(select(Incident).where(Incident.title == old))
+        if incident is None:
+            continue
+        synthetic = incident.description == MARKER or (
+            old
+            in (
+                "[DEMO FLUJO] Colisión sintética para exposición",
+                "[DEMO 6C] Validación integrada final",
+            )
+            and (incident.description or "").startswith(
+                (
+                    "Escenario sintético; no describe un accidente real.",
+                    "Registro sintético creado exclusivamente para comprobar la entrega.",
+                )
+            )
+        )
+        if not synthetic:
+            raise ValueError("El nombre DEMO coincide con un registro no reconocido; no se cambia.")
+        if db.scalar(select(Incident.id).where(Incident.title == new, Incident.id != incident.id)):
+            raise ValueError("Hay nombres DEMO duplicados; no se sobrescribe ningún registro.")
+        incident.title = new
+        if old in (
+            "[DEMO FLUJO] Colisión sintética para exposición",
+            "[DEMO 6C] Validación integrada final",
+        ):
+            incident.description = MARKER
+        renamed += 1
+    tasks = list(
+        db.scalars(
+            select(FollowUp).where(
+                FollowUp.title == "[DEMO] Revisar documentación sintética",
+                FollowUp.description == MARKER,
+            )
+        )
+    )
+    for task in tasks:
+        task.title = "[DEMO] Revisar información del accidente"
+    db.flush()
+    return {"renamed_accidents": renamed, "renamed_tasks": len(tasks)}
+
+
 def validate_demo_url(value: str | None) -> str:
     if not value:
         raise ValueError("Define DEMO_DATABASE_URL explícitamente; no se usa DATABASE_URL ni .env.")
@@ -69,7 +124,7 @@ def validate_demo_url(value: str | None) -> str:
     return value
 
 
-def seed_demo(db: Session, *, actor_email: str) -> dict:
+def seed_demo(db: Session, *, actor_email: str, rename_only: bool = False) -> dict:
     actor = db.scalar(select(User).where(User.email == actor_email, User.is_active.is_(True)))
     if actor is None or effective_role(actor) not in (Role.admin, Role.incident_commander):
         raise ValueError(
@@ -77,6 +132,9 @@ def seed_demo(db: Session, *, actor_email: str) -> dict:
         )
     # Serialize simultaneous runs, without schema changes or a demo marker migration.
     db.execute(text("SELECT pg_advisory_xact_lock(6241606)"))
+    renamed = rename_demo_labels(db)
+    if rename_only:
+        return renamed
     seed_severity_levels(db)
     seed_status_levels(db)
     priorities = list(db.scalars(select(SeverityLevel).order_by(SeverityLevel.rank)))
@@ -84,7 +142,7 @@ def seed_demo(db: Session, *, actor_email: str) -> dict:
     today = datetime.now(UTC).date()
     created, analyzed, ids = 0, 0, []
     for index, (name, values) in enumerate(SCENARIOS):
-        title = f"[DEMO {index + 1:02d}] {name}"
+        title = f"[DEMO] {name}"
         incident = db.scalar(select(Incident).where(Incident.title == title))
         if incident is not None and incident.description != MARKER:
             raise ValueError(
@@ -126,7 +184,7 @@ def seed_demo(db: Session, *, actor_email: str) -> dict:
             create_prediction(db, incident, created_by=actor.id)
             analyzed += 1
         if index in (0, 2, 7):
-            task_title = "[DEMO] Revisar documentación sintética"
+            task_title = "[DEMO] Revisar información del accidente"
             if (
                 db.scalar(
                     select(FollowUp.id).where(
@@ -153,6 +211,7 @@ def seed_demo(db: Session, *, actor_email: str) -> dict:
     )
     latest = {p.incident_id: p.predicted_severity for p in predictions}
     return {
+        **renamed,
         "created": created,
         "new_predictions": analyzed,
         "demo_accidents": len(ids),
@@ -172,6 +231,11 @@ def main() -> None:
     parser.add_argument(
         "--actor-email", required=True, help="Usuario gestor existente en la base DEMO"
     )
+    parser.add_argument(
+        "--rename-only",
+        action="store_true",
+        help="Actualiza únicamente nombres reconocidos, sin crear ni analizar registros",
+    )
     args = parser.parse_args()
     if not args.confirm_demo:
         parser.error("Debes confirmar la base de demostración con --confirm-demo.")
@@ -180,7 +244,7 @@ def main() -> None:
         engine = create_engine(url)
         try:
             with Session(engine) as db, db.begin():
-                summary = seed_demo(db, actor_email=args.actor_email)
+                summary = seed_demo(db, actor_email=args.actor_email, rename_only=args.rename_only)
         finally:
             engine.dispose()
     except Exception as exc:

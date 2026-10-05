@@ -2,10 +2,10 @@
   <div class="inc-main">
     <a class="inc-title" href="/incidents/{{ i.id }}">{{ i.title }}</a>
     <div class="inc-meta">
-      <span>Prioridad operativa: {{ i.severity_level.label if i.severity_level else '—' }}</span>
+      <span>Prioridad de atención: {{ priority_display(i.severity_level) }}</span>
       <span>{{ road_display('date', i.date) }}{% if i.time %} · {{ road_display('time', i.time) }}{% endif %}</span>
       {% set ml_label = (latest_ml_labels | default({})).get(i.id) %}
-      <span class="inc-ml{% if ml_label in ('Fatal', 'Grave', 'Leve') %} ml-{{ ml_label | lower }}{% endif %}">ML: {{ ml_label or 'Pendiente' }}</span>
+      <span class="inc-ml{% if ml_label in ('Fatal', 'Grave', 'Leve') %} ml-{{ ml_label | lower }}{% endif %}">{{ 'Gravedad estimada: ' ~ ml_label if ml_label else 'Análisis ML: Pendiente' }}</span>
       {% if i.urban_or_rural_area is not none %}<span class="chip">{{ road_display('urban_or_rural_area', i.urban_or_rural_area) }}</span>{% endif %}
       {% if i.road_type is not none %}<span class="chip">{{ road_display('road_type', i.road_type) }}</span>{% endif %}
       {% if i.is_private %}<span class="lock">· privado</span>{% endif %}
@@ -18,7 +18,7 @@
     {% set _row_role = effective_role(current_user) %}
     {% if not i.is_closed and _row_role and _row_role.value in ('admin', 'incident_commander') %}
       <form method="post" action="/incidents/{{ i.id }}/close">
-        <button class="btn btn-sm" type="submit">Cerrar</button>
+        <button class="btn btn-sm" type="submit">Cerrar accidente</button>
       </form>
     {% endif %}
   </span>

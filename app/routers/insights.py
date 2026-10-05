@@ -16,6 +16,19 @@ from app.templating import templates
 router = APIRouter()
 
 
+@router.get("/about", response_class=HTMLResponse)
+def about_project(request: Request, user: User = Depends(require_user)):
+    return templates.TemplateResponse(
+        request,
+        "about.html",
+        {
+            "current_user": user,
+            "model_info": load_model_metadata(),
+            "model_evaluation": load_model_evaluation(),
+        },
+    )
+
+
 @router.get("/insights", response_class=HTMLResponse)
 def insights_page(
     request: Request,

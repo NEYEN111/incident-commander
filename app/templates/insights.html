@@ -2,7 +2,7 @@
 {% block title %}Estadísticas · {{ app_name }}{% endblock %}
 {% block page_surface %}insights-surface{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="/static/road-analytics.css?v=3">
+<link rel="stylesheet" href="/static/road-analytics.css?v=4">
 <div class="road-analytics">
   {% macro percentage(value) %}{{ ('%.1f' | format(value)).replace('.', ',') }} %{% endmacro %}
   <header class="analytics-header">
@@ -19,7 +19,7 @@
   <p class="analytics-period">{% if data.since %}Del {{ data.since.strftime('%d/%m/%Y') }} al {{ data.until.strftime('%d/%m/%Y') }} · Fechas inclusive, calendario UTC.{% else %}Todo el historial registrado.{% endif %} El período se aplica a la fecha del accidente.</p>
 
   <dl class="analytics-summary" aria-label="Resumen del período">
-    {% for key, label, value in [("total", "Total de accidentes", data.total), ("analyzed", "Analizados con ML", data.with_prediction), ("pending", "Pendientes de análisis", data.without_prediction), ("located", "Con ubicación geográfica", data.with_coordinates)] %}
+    {% for key, label, value in [("total", "Total de accidentes", data.total), ("analyzed", "Accidentes analizados con ML", data.with_prediction), ("pending", "Pendientes de análisis", data.without_prediction), ("located", "Accidentes con ubicación", data.with_coordinates)] %}
     <div><dt>{{ label }}</dt><dd data-metric="{{ key }}">{{ value }}</dd></div>
     {% endfor %}
   </dl>
@@ -46,7 +46,7 @@
     {% else %}
     <p class="analytics-empty">Aún no hay suficientes predicciones para mostrar la distribución.</p>
     {% endif %}
-    <p class="analytics-separation">La predicción del modelo es independiente de la prioridad operativa. Fatal / Grave / Leve son categorías estimadas por ML; SEV1 / SEV2 / SEV3 expresan prioridad operativa.</p>
+    <p class="analytics-separation">La gravedad estimada por ML es independiente de la prioridad de atención. Fatal / Grave / Leve son categorías estimadas por Machine Learning; los niveles de atención son decisiones humanas configurables.</p>
   </section>
 
   <section class="analytics-section analytics-evolution" aria-labelledby="evolution-title">
@@ -57,7 +57,7 @@
     {% if data.timeline.dated_total %}
     <ul class="analytics-legend" aria-label="Series de evolución">
       <li><span class="analytics-legend-total" aria-hidden="true"></span>Total de accidentes: {{ data.timeline.dated_total }}</li>
-      <li><span class="analytics-legend-predicted" aria-hidden="true"></span>Con predicción ML: {{ data.timeline.predicted_total }}</li>
+      <li><span class="analytics-legend-predicted" aria-hidden="true"></span>Analizados con ML: {{ data.timeline.predicted_total }}</li>
     </ul>
     {% if data.timeline.rows | length >= 4 %}
     <svg class="analytics-timeline" viewBox="0 0 800 220" role="img" aria-labelledby="timeline-title timeline-description">
@@ -82,7 +82,7 @@
         </table>
       </div>
     </details>
-    <p class="analytics-note">«Con predicción ML» indica que el accidente tiene un resultado guardado; no es la fecha en que se ejecutó el análisis.</p>
+    <p class="analytics-note">«Analizados con ML» indica que el accidente tiene un resultado guardado; no es la fecha en que se ejecutó el análisis.</p>
     {% else %}<p class="analytics-empty">No hay accidentes con fecha en este período para mostrar la evolución.</p>{% endif %}
     <p class="analytics-note">{{ data.undated }} accidentes sin fecha{% if days %}, contabilizados aparte y excluidos del período{% else %}, incluidos en el total y excluidos de los gráficos por fecha{% endif %}. {{ data.without_time }} accidentes del período sin hora.</p>
   </section>
@@ -98,29 +98,30 @@
         {% if model_info.get('variables') %}<div><dt>Variables utilizadas</dt><dd>{{ model_info.variables | length }}</dd></div>{% endif %}
         {% if model_info.get('parametros', {}).get('n_estimators') %}<div><dt>Árboles</dt><dd>{{ model_info.parametros.n_estimators }}</dd></div>{% endif %}
       </dl>
-      <p class="analytics-note">Variables: {{ model_info.get('variables', []) | join(', ') }}. Día de la semana y hora se derivan automáticamente de la fecha y hora del accidente.</p>
-      <p class="analytics-note">Parámetros finales: {% for name, value in model_info.get('parametros', {}).items() %}{{ name }}={{ value }}{{ '; ' if not loop.last else '.' }}{% endfor %} Fuente: models/modelo_info.json.</p>
+      <p class="analytics-note">Datos utilizados: {% for name in model_info.get('variables', []) %}{{ feature_labels.get(name, 'Dato del accidente') }}{{ ', ' if not loop.last else '.' }}{% endfor %} Día de la semana y hora se obtienen automáticamente de la fecha y hora registradas.</p>
+      <p class="analytics-note">Configuración del modelo: {{ model_info.parametros.n_estimators }} árboles, profundidad máxima {{ model_info.parametros.max_depth }}, mínimo {{ model_info.parametros.min_samples_leaf }} ejemplos por hoja y pesos de clase balanceados en cada muestra de entrenamiento.</p>
       {% else %}<p class="analytics-empty">Los metadatos del modelo no están disponibles. Esto no indica ausencia de predicciones guardadas.</p>{% endif %}
       {% if model_evaluation %}
       <h3>Evaluación del modelo entrenado</h3>
-      <p class="analytics-note">Dataset: <a href="{{ model_evaluation.dataset_url }}">{{ model_evaluation.dataset }}</a>. {{ model_evaluation.rows }} registros; {{ model_evaluation.train_rows }} para entrenamiento y {{ model_evaluation.test_rows }} para test.</p>
-      <p class="analytics-note">{{ model_evaluation.evaluation }}</p>
+      <p class="analytics-note">Datos de entrenamiento: <a href="{{ model_evaluation.dataset_url }}">{{ model_evaluation.dataset }}</a>. {{ model_evaluation.rows }} registros; {{ model_evaluation.train_rows }} para entrenamiento y {{ model_evaluation.test_rows }} para prueba.</p>
+      <p class="analytics-note">Se separó el 80 % para entrenamiento y el 20 % para prueba, conservando la proporción de las clases. La configuración se eligió mediante validación sobre entrenamiento; la evaluación final utilizó los datos reservados para prueba.</p>
       <dl class="analytics-model-facts">
         {% for key, label in [('accuracy', 'Accuracy'), ('f1_macro', 'F1 macro'), ('balanced_accuracy', 'Balanced accuracy'), ('roc_auc_macro_ovr', 'ROC-AUC macro OVR')] %}
-        <div><dt>{{ label }}</dt><dd>{{ ('%.4f' | format(model_evaluation.metrics[key])).replace('.', ',') }}</dd></div>
+        {% set metric_help = {'accuracy': 'Proporción general de aciertos; 0,5577 equivale aproximadamente al 55,77 %.', 'f1_macro': 'Equilibra precisión y detección de casos, dando el mismo peso a cada clase.', 'balanced_accuracy': 'Promedio de aciertos dentro de cada clase.', 'roc_auc_macro_ovr': 'Mide la capacidad de diferenciar las clases, comparando cada una con las demás.'} %}
+        <div><dt>{{ label }}</dt><dd>{{ ('%.4f' | format(model_evaluation.metrics[key])).replace('.', ',') }}<span class="metric-help">{{ metric_help[key] }}</span></dd></div>
         {% endfor %}
       </dl>
       <details class="analytics-data">
         <summary>Ver evaluación por clase</summary>
         <div class="analytics-table-scroll" role="region" aria-label="Evaluación por clase" tabindex="0">
-          <table><caption>Resultados de test; precision, recall y F1 redondeados como en el notebook.</caption>
+          <table><caption>Resultados del conjunto de prueba. Precisión: acierto entre los casos asignados a la clase. Recall: proporción de casos reales de la clase detectados. F1 combina ambos.</caption>
             <thead><tr><th scope="col">Clase</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1</th><th scope="col">Registros</th></tr></thead>
             <tbody>{% for row in model_evaluation.class_report_rounded %}<tr><th scope="row">{{ row.label }}</th><td>{{ row.precision }}</td><td>{{ row.recall }}</td><td>{{ row.f1 }}</td><td>{{ row.support }}</td></tr>{% endfor %}</tbody>
           </table>
         </div>
       </details>
-      <p class="analytics-note">{{ model_evaluation.limitation }}</p>
-      <p class="analytics-note">Fuente: {{ model_evaluation.source }}, celda {{ model_evaluation.source_cell }} (índice desde cero). {{ model_evaluation.scope }} Estos resultados de evaluación no son las estadísticas de los accidentes registrados en la aplicación.</p>
+      <p class="analytics-note">{{ model_evaluation.limitation | replace('dataset', 'conjunto de datos') | replace('En test', 'En el conjunto de prueba') | replace('precision', 'precisión') | replace('recall', 'detección de casos') }}</p>
+      <p class="analytics-note">Resultados documentados en el cuaderno académico del proyecto para el modelo final. No se ha repetido la evaluación ni el entrenamiento. Estas métricas no son las estadísticas de los accidentes registrados en la aplicación.</p>
       {% else %}<p class="analytics-note">No está disponible la evaluación documentada del modelo.</p>{% endif %}
     </div>
   </section>

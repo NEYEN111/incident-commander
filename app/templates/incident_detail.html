@@ -7,7 +7,7 @@
 <div class="panel"{% if i.is_closed %} data-closed{% endif %} style="--sev-color: {{ i.severity_level.color if i.severity_level else '#5E7180' }}">
   {# --- header (always visible) --- #}
   <div class="page-head" style="margin-bottom:6px">
-    <span class="sev">{{ i.severity_level.label if i.severity_level else '—' }}</span>
+    <span class="sev">Prioridad de atención: {{ priority_display(i.severity_level) }}</span>
     <h1 style="margin:0">{{ i.title }}</h1>
   </div>
   <span class="status" data-status="{{ i.status.category.value if i.status else 'active' }}">
@@ -29,7 +29,7 @@
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-roles">
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-timeline">
     <input class="tab-radio" type="radio" name="inc-tab" id="tab-followups">
-    <nav class="tab-bar" role="tablist">
+    <nav class="tab-bar" aria-label="Secciones del accidente">
       <label for="tab-overview">Resumen</label>
       <label for="tab-roles">Roles</label>
       <label for="tab-timeline">Cronología</label>
@@ -51,6 +51,8 @@
           <dt>{{ spec.label }}</dt><dd>{{ road_display(name, road_values(i)[name]) }}</dd>
           {% endfor %}
         </dl>
+
+        <p class="accident-help">La ubicación es opcional y sirve para mostrar el accidente en el mapa. Las coordenadas no forman parte del análisis de gravedad.</p>
 
         {% if custom_fields %}
         <div class="kv" style="align-items:start"><dt>Campos adicionales</dt><dd>
@@ -88,12 +90,13 @@
             <textarea id="edit-description" name="description" rows="4" style="width:100%">{{ i.description or "" }}</textarea>
           </div>
           <div style="margin-bottom:.5rem">
-            <label for="edit-severity">Prioridad operativa</label><br>
+            <label for="edit-severity">Prioridad de atención</label><br>
             <select id="edit-severity" name="severity_level_id" required>
               {% for lvl in severity_levels %}
-              <option value="{{ lvl.id }}"{% if lvl.id == i.severity_level_id %} selected{% endif %}>{{ lvl.label }}</option>
+              <option value="{{ lvl.id }}"{% if lvl.id == i.severity_level_id %} selected{% endif %}>{{ priority_display(lvl) }}</option>
               {% endfor %}
             </select>
+            <p class="accident-help">Indica qué tan prioritaria es la atención del accidente, según los niveles configurados. No es el resultado del Machine Learning.</p>
           </div>
           {% with road_data=road_values(i), field_prefix='edit', road_field_names=['date', 'time', 'latitude', 'longitude'], road_section_title='Fecha y ubicación' %}{% include "partials/road_field_inputs.html" %}{% endwith %}
           <button class="btn" type="submit">Guardar cambios</button>
@@ -152,7 +155,7 @@
             {% if e.entry_type == "note" %}
             <form method="post" action="/incidents/{{ i.id }}/events/{{ e.id }}/delete" style="display:inline"
                   onsubmit="return confirm('¿Eliminar esta nota?')">
-              <button class="chip" type="submit">Eliminar</button>
+              <button class="chip" type="submit">Eliminar nota</button>
             </form>
             {% endif %}
             {% endif %}
@@ -201,7 +204,7 @@
             {% else %}
             <form method="post" action="/followups/{{ f.id }}/status" style="display:inline"><input type="hidden" name="status" value="open"><button class="chip" type="submit">Reabrir</button></form>
             {% endif %}
-            <form method="post" action="/followups/{{ f.id }}/delete" style="display:inline" onsubmit="return confirm('¿Eliminar esta tarea?')"><button class="chip" type="submit">Eliminar</button></form>
+            <form method="post" action="/followups/{{ f.id }}/delete" style="display:inline" onsubmit="return confirm('¿Eliminar esta tarea?')"><button class="chip" type="submit">Eliminar tarea</button></form>
           </div>
           {% endif %}
         </div>
@@ -234,4 +237,5 @@
   {% endif %}
   <a class="backlink" href="/">← Todos los accidentes</a>
 </div>
+<script src="/static/incident-tabs.js?v=1" defer></script>
 {% endblock %}

@@ -262,6 +262,9 @@ def test_main_interface_is_spanish_and_technical_modules_hidden(client):
     assert "Iniciar sesión" in login and "Sistema de Gestión de Accidentes Viales" in login
     home = client.get("/").text
     assert "Registrar accidente" in home and 'lang="es"' in home
+    assert "Prioridad de atención" in home and "Nivel 2 (SEV2)" in home
+    assert "No es el resultado del Machine Learning" in home
+    assert "Ubicación del accidente (opcional)" in home and "GPS" in home
     for field in ["date", "time", "latitude", "longitude"]:
         assert f'name="{field}"' in home
     for field in ROAD_FIELDS.keys() - {"date", "time", "latitude", "longitude"}:

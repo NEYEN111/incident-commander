@@ -4,6 +4,9 @@
     {% if road_heading_level | default(4) == 3 %}<h3 class="section-title">{{ road_section_title }}</h3>
     {% else %}<h4 class="section-title">{{ road_section_title }}</h4>{% endif %}
   {% endif %}
+  {% if 'latitude' in road_field_names | default(road_fields) %}
+  <p class="accident-help">La ubicación se utiliza únicamente para mostrar el accidente en el mapa. No forma parte de la predicción del modelo. Puedes introducir coordenadas obtenidas del GPS o de una ubicación conocida.</p>
+  {% endif %}
   {% else %}
   <h2 class="section-title">Datos del accidente</h2>
   <p class="muted">Deja en blanco los datos que todavía no conoces. El límite de velocidad se registra en millas por hora (mph).</p>
@@ -13,7 +16,7 @@
     {% set spec = road_fields[name] %}
     {% set value = road_data.get(name) %}
     <label class="field-block" for="{{ field_prefix }}-{{ name }}">
-      <span>{{ spec.label }}</span>
+      <span>{{ feature_labels.get(name, spec.label) }}{{ ' (mph)' if name == 'speed_limit' else '' }}</span>
       {% if name == 'speed_limit' and field_prefix == 'ml' %}
       <select id="ml-speed_limit" name="speed_limit" required aria-describedby="ml-speed-help">
         <option value=""{% if value not in [20, 30, 40, 50, 60, 70] %} selected{% endif %}>Selecciona velocidad</option>

@@ -27,6 +27,7 @@
 .analytics-summary > div + div { border-left: 1px solid var(--analytics-border); }
 .analytics-summary dt { color: var(--analytics-secondary); }
 .analytics-summary dd { margin: 8px 0 0; font-size: 32px; line-height: 40px; font-weight: 600; }
+.analytics-model-facts .metric-help { display: block; margin-top: 8px; color: var(--analytics-secondary); font: 400 15px/24px var(--font-sans); }
 .analytics-distribution { padding: 24px; border: 1px solid var(--analytics-border); border-radius: 12px; background: #FFFFFF; }
 .analytics-section-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .analytics-section-head > div { min-width: 0; }

@@ -4,10 +4,11 @@
 {% block content %}
 <link rel="stylesheet" href="/static/support-pages.css?v=1">
 <div class="page-head"><h1>Configuración</h1></div>
-<p class="page-sub">Administra el acceso, las prioridades operativas, los estados y los responsables.</p>
+<p class="page-sub">Administra el acceso, las prioridades de atención, los estados y los responsables.</p>
 
 <section class="card" aria-labelledby="smtp-title">
-  <h2 id="smtp-title">Correo electrónico (SMTP)</h2>
+  <h2 id="smtp-title">Servidor de correo electrónico</h2>
+  <p class="help">Configura los datos proporcionados por tu servicio de correo para enviar invitaciones y mensajes de prueba.</p>
   <form method="post" action="/settings/smtp">
     <div class="form-row">
       <label class="field-block grow"><span>Servidor</span><input name="host" value="{{ smtp.host or '' }}"></label>
@@ -19,9 +20,9 @@
     </div>
     <div class="form-row">
       <label class="field-block grow"><span>Correo del remitente</span><input name="from_address" value="{{ smtp.from_address or '' }}"></label>
-      <label class="check"><input type="checkbox" name="use_tls" value="true" {{ 'checked' if smtp.use_tls else '' }}> STARTTLS</label>
+      <label class="check"><input type="checkbox" name="use_tls" value="true" {{ 'checked' if smtp.use_tls else '' }}> Cifrar la conexión al correo (STARTTLS)</label>
     </div>
-    <button class="btn btn-primary" type="submit">Guardar SMTP</button>
+    <button class="btn btn-primary" type="submit">Guardar configuración de correo</button>
   </form>
   <form class="secondary-action" method="post" action="/settings/smtp/test">
     <button class="btn" type="submit" {{ 'disabled' if not smtp_configured else '' }}>Enviar correo de prueba</button>
@@ -30,9 +31,10 @@
 </section>
 
 <section class="card" aria-labelledby="sso-title">
-  <h2 id="sso-title">Inicio de sesión único (OIDC)</h2>
+  <h2 id="sso-title">Acceso con un proveedor externo</h2>
+  <p class="help">Permite iniciar sesión con una cuenta del proveedor configurado, como Microsoft o Google. Usa el protocolo OpenID Connect (OIDC).</p>
   <form method="post" action="/settings/sso">
-    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Activar SSO</label>
+    <label class="check"><input type="checkbox" name="sso_enabled" value="true" {{ 'checked' if sso.sso_enabled else '' }}> Activar acceso con el proveedor</label>
     <label class="check"><input type="checkbox" name="allow_local_login" value="true" {{ 'checked' if sso.allow_local_login else '' }}> Permitir acceso con contraseña (el administrador siempre puede acceder)</label>
     <label class="field-block"><span>URL del proveedor</span><input name="issuer" value="{{ sso.issuer or '' }}" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0 o https://accounts.google.com"></label>
     <div class="form-row">
@@ -43,13 +45,14 @@
       <label class="field-block grow"><span>Texto del botón</span><input name="display_name" value="{{ sso.display_name or '' }}" placeholder="Microsoft"></label>
       <label class="field-block grow"><span>Dominios permitidos (separados por comas)</span><input name="allowed_domains" value="{{ sso.allowed_domains or '' }}"></label>
     </div>
-    <button class="btn btn-primary" type="submit">Guardar SSO</button>
+    <button class="btn btn-primary" type="submit">Guardar configuración de acceso</button>
   </form>
-  <p class="help">URI de redirección para registrar en el proveedor: <code>{{ base_url }}/auth/oidc/callback</code>. Si los dominios permitidos están vacíos, se acepta cualquier usuario de este proveedor.</p>
+  <p class="help">Dirección de retorno que debes registrar en el proveedor: <code>{{ base_url }}/auth/oidc/callback</code>. Si los dominios permitidos están vacíos, se acepta cualquier usuario de este proveedor.</p>
 </section>
 
 <section class="card" aria-labelledby="severity-title">
-  <h2 id="severity-title">Prioridades operativas</h2>
+  <h2 id="severity-title">Prioridades de atención</h2>
+  <p class="help">Niveles configurados para organizar la atención, independientes del Machine Learning. El orden determina cómo aparecen en los selectores: los números menores van primero. Los códigos SEV no tienen una equivalencia automática con Alta, Media o Baja.</p>
   {% if severity_levels %}
   <div class="table-scroll" role="region" aria-labelledby="severity-title" tabindex="0">
   <table>
@@ -65,7 +68,7 @@
     <tbody>
       {% for lvl in severity_levels %}
       <tr>
-        <td>{{ lvl.label }}</td>
+        <td>{{ priority_display(lvl) }}</td>
         <td>
           <span class="color-swatch" style="background:{{ lvl.color }}" aria-hidden="true"></span>
           <span>{{ lvl.color }}</span>
@@ -77,7 +80,7 @@
         </td>
         <td>
           <form method="post" action="/settings/severity/{{ lvl.id }}/delete">
-            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ lvl.label|tojson }} + "?")'>Eliminar</button>
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ lvl.label|tojson }} + "?")'>Eliminar prioridad</button>
           </form>
         </td>
       </tr>
@@ -89,7 +92,7 @@
   <p class="muted">Todavía no hay prioridades definidas.</p>
   {% endif %}
 
-  <h3>Añadir prioridad operativa</h3>
+  <h3>Añadir prioridad de atención</h3>
   <form method="post" action="/settings/severity">
     <div class="form-row">
       <label class="field-block grow"><span>Nombre</span><input name="label" required maxlength="40"></label>
@@ -127,7 +130,7 @@
         </td>
         <td>
           <form method="post" action="/settings/statuses/{{ s.id }}/delete">
-            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ s.label|tojson }} + "?")'>Eliminar</button>
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ s.label|tojson }} + "?")'>Eliminar estado</button>
           </form>
         </td>
       </tr>
@@ -174,7 +177,7 @@
         <td>{{ rt.rank }}</td>
         <td>
           <form method="post" action="/settings/roles/{{ rt.id }}/delete">
-            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ rt.label|tojson }} + "?")'>Eliminar</button>
+            <button class="btn btn-danger" type="submit" onclick='return confirm("¿Eliminar " + {{ rt.label|tojson }} + "?")'>Eliminar rol</button>
           </form>
         </td>
       </tr>

@@ -27,6 +27,10 @@ def _seed_user(db_session):
 @pytest.fixture
 def client(db_session, get_db_override):
     app = create_app()
+    # Exercise the retained legacy module independently of the road app's routing.
+    from app.routers.postmortems import router
+
+    app.include_router(router)
     app.dependency_overrides[get_db] = get_db_override
     return TestClient(app)
 

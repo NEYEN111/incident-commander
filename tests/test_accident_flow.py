@@ -52,7 +52,7 @@ def test_accident_ml_persistence_rendered_statistics_and_map(db_session, get_db_
         assert created.status_code == 303
         incident = db_session.scalars(select(Incident)).one()
         home = client.get("/").text
-        assert "ML: Pendiente" in home
+        assert "Análisis ML: Pendiente" in home
         registration = re.search(r'<details class="accident-registration"([^>]*)>', home)
         assert registration and "open" not in registration.group(1)
         assert "<summary>Registrar accidente</summary>" in home
@@ -100,12 +100,18 @@ def test_accident_ml_persistence_rendered_statistics_and_map(db_session, get_db_
         assert detail.status_code == 200
         assert f"Gravedad estimada: {latest.predicted_severity}" in detail.text
         assert f'data-prediction-id="{predictions[0].id}"' in detail.text
-        assert "La predicción del modelo es independiente de la prioridad operativa" in detail.text
+        assert (
+            "La gravedad estimada por ML es independiente de la prioridad de atención"
+            in detail.text
+        )
         pending = client.post("/incidents", data={"title": "Pendiente sin ubicación"})
         assert pending.status_code == 200
         home = client.get("/").text
-        assert f"ML: {latest.predicted_severity}" in home and "ML: Pendiente" in home
-        assert "Prioridad operativa: SEV1" in home
+        assert (
+            f"Gravedad estimada: {latest.predicted_severity}" in home
+            and "Análisis ML: Pendiente" in home
+        )
+        assert "Prioridad de atención: Nivel 1 (SEV1)" in home
         stats = client.get("/insights?days=0")
         assert stats.status_code == 200
         assert 'href="/insights?days=0" class="active" aria-current="page"' in stats.text
@@ -121,6 +127,7 @@ def test_accident_ml_persistence_rendered_statistics_and_map(db_session, get_db_
         point = mapped.json()["incidents"][0]
         assert point["id"] == incident.id
         assert point["operational_priority"] == "SEV1"
+        assert point["operational_priority_label"] == "Nivel 1 (SEV1)"
         assert point["latest_prediction"]["prediction"] == latest.predicted_severity
         assert point["latest_prediction"]["probabilities"] == pytest.approx(probabilities)
         assert point["operational_priority"] != point["latest_prediction"]["prediction"]
@@ -131,8 +138,8 @@ def test_accident_ml_persistence_rendered_statistics_and_map(db_session, get_db_
         assert incident.severity_level_id == priority.id
         closed = client.post(f"/incidents/{incident.id}/close", headers={"HX-Request": "true"})
         assert closed.status_code == 200
-        assert f"ML: {latest.predicted_severity}" in closed.text
-        assert "ML: Pendiente" not in closed.text
-        assert "Prioridad operativa: SEV1" in closed.text
+        assert f"Gravedad estimada: {latest.predicted_severity}" in closed.text
+        assert "Análisis ML: Pendiente" not in closed.text
+        assert "Prioridad de atención: Nivel 1 (SEV1)" in closed.text
     finally:
         client.close()

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Ficha ML #{{ prediction.id }} · {{ app_name }}{% endblock %}
+{% block page_surface %}accident-page academic-surface{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/academic.css?v=1">
+<article class="academic-sheet prediction-sheet">
+  <header><p class="academic-eyebrow">{{ app_name }}</p><h1>Ficha del análisis ML</h1>
+    <p>Accidente #{{ i.id }} · Análisis #{{ prediction.id }}<br>{{ i.title }}</p>
+    <p>Analizado el {{ prediction.created_at.strftime('%d/%m/%Y %H:%M:%S UTC') }} · Modelo {{ prediction.model_version }}</p>
+  </header>
+  <nav class="academic-actions report-actions" aria-label="Acciones de la ficha">
+    <button class="btn btn-primary" type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+    <a href="/incidents/{{ i.id }}#ml-prediction">Volver al accidente</a>
+  </nav>
+  <p class="report-actions">Para obtener un PDF, selecciona «Guardar como PDF» en el diálogo de impresión del navegador.</p>
+  <section><h2>Predicción de gravedad</h2>
+    <p class="report-severity ml-{{ prediction.predicted_severity | lower }}">{{ prediction.predicted_severity | upper }}</p>
+    <p>Probabilidades estimadas · escala de 0 a 100 %</p>
+    <dl class="ml-probabilities">
+      {% for label, probability in [('Leve', prediction.prob_leve), ('Grave', prediction.prob_grave), ('Fatal', prediction.prob_fatal)] %}
+      <div class="ml-probability ml-{{ label | lower }}"><dt>{{ label }}</dt><dd><span class="ml-probability-track" aria-hidden="true"><span style="width: {{ probability * 100 }}%"></span></span><span>{{ '%.1f' | format(probability * 100) }}%</span></dd></div>
+      {% endfor %}
+    </dl>
+    <p>El modelo selecciona la clase con mayor probabilidad estimada. No representa una certeza. La gravedad estimada por ML es independiente de la prioridad de atención.</p>
+  </section>
+  <section><h2>Entradas utilizadas en este análisis</h2>
+    <p>Valores guardados con esta predicción. Se conservan aunque el accidente se edite después.</p>
+    <dl class="report-inputs">
+      {% set weekdays = {1: 'Domingo', 2: 'Lunes', 3: 'Martes', 4: 'Miércoles', 5: 'Jueves', 6: 'Viernes', 7: 'Sábado'} %}
+      <div><dt>Día de la semana</dt><dd>{{ weekdays.get(prediction.input_data.get('day_of_week'), 'Sin dato guardado') }}</dd></div>
+      <div><dt>Hora utilizada por el modelo</dt><dd>{% if prediction.input_data.get('hour') is not none %}{{ '%02d' | format(prediction.input_data.hour) }} h{% else %}Sin dato guardado{% endif %}</dd></div>
+      {% for name in ['road_type', 'speed_limit', 'urban_or_rural_area', 'light_conditions', 'weather_conditions', 'road_surface_conditions', 'number_of_vehicles', 'junction_detail', 'first_road_class'] %}
+      <div data-input="{{ name }}"><dt>{{ feature_labels.get(name, road_fields[name].label) }}{{ ' (mph)' if name == 'speed_limit' else '' }}</dt><dd>{{ road_display(name, prediction.input_data.get(name)) }}</dd></div>
+      {% endfor %}
+    </dl>
+    <p>Se conserva el día de la semana y la hora entera utilizados por el modelo; esta instantánea no almacena la fecha completa ni los minutos del accidente.</p>
+  </section>
+  <section><h2>Referencia actual del accidente</h2>
+    <p>Estos datos son actuales y pueden haber cambiado desde el análisis; no forman parte de sus once entradas guardadas.</p>
+    <dl class="report-inputs"><div><dt>Prioridad de atención actual</dt><dd>{{ priority_display(i.severity_level) }}</dd></div><div><dt>Fecha y hora registradas actualmente</dt><dd>{{ road_display('date', i.date) }} · {{ road_display('time', i.time) }}</dd></div></dl>
+  </section>
+  <footer><p>Fatal / Grave / Leve son categorías estimadas, no una confirmación de lesiones o fallecimientos. Leve no significa ausencia de peligro.</p></footer>
+</article>
+{% endblock %}

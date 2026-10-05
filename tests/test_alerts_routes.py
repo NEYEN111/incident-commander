@@ -11,6 +11,12 @@ from app.services.users import bootstrap_admin, create_user
 @pytest.fixture
 def client(db_session, get_db_override):
     app = create_app()
+    # Exercise the retained legacy module independently of the road app's routing.
+    from app.routers.alerts import router
+    from app.routers.catalog import router as catalog_router
+
+    app.include_router(router)
+    app.include_router(catalog_router)
     app.dependency_overrides[get_db] = get_db_override
     return TestClient(app)
 
@@ -51,7 +57,7 @@ def test_inbox_renders_sidebar_when_authenticated(client, db_session):
     for route in ("/", "/maps", "/insights", "/follow-ups", "/account/password", "/logout"):
         assert f'href="{route}"' in html
     assert "ic@x.io" in html
-    # SRE catalog navigation is intentionally hidden, not removed from the backend.
+    # The legacy catalog is mounted only by this fixture, never by the road app.
     assert 'href="/systems"' not in html
     assert client.get("/systems").status_code == 200
     for route in ("/users", "/groups", "/settings"):

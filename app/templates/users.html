@@ -13,7 +13,7 @@
     <label class="field-block"><span>Rol</span><select name="role">{% for r in roles %}<option value="{{ r.value }}">{{ r.value | ui_es }}</option>{% endfor %}</select></label>
     <button class="btn btn-primary" type="submit">Crear usuario</button>
   </form>
-  <p class="help">Con SMTP configurado se envía una invitación. En caso contrario, se muestra una contraseña temporal una sola vez; el usuario deberá cambiarla al iniciar sesión.</p>
+  <p class="help">Con el servidor de correo configurado se envía una invitación. En caso contrario, se muestra una contraseña temporal una sola vez; el usuario deberá cambiarla al iniciar sesión.</p>
 </section>
 <section class="card" aria-labelledby="users-title">
   <h2 id="users-title">Usuarios registrados</h2>
@@ -37,7 +37,7 @@
                 <option value="{{ g.id }}" {% if g.id in member_ids %}selected{% endif %}>{{ g.name | ui_es }}</option>
               {% endfor %}
             </select>
-            <button class="btn btn-sm" type="submit" aria-label="Guardar grupos de {{ u.name }}">Guardar</button>
+            <button class="btn btn-sm" type="submit" aria-label="Guardar grupos de {{ u.name }}">Guardar grupos</button>
           </form>
         </td>
         <td>{% if not u.is_protected_admin and u.is_active %}

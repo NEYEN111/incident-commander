@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
+from app.i18n import priority_label
 from app.models import Incident, IncidentPrediction, SeverityLevel, StatusLevel
 
 
@@ -39,6 +40,7 @@ def map_incidents(
             Incident.time,
             Incident.urban_or_rural_area,
             SeverityLevel.label.label("operational_priority"),
+            SeverityLevel.rank.label("priority_rank"),
             StatusLevel.label.label("status"),
             ranked.c.predicted_severity,
             ranked.c.prob_fatal,
@@ -75,6 +77,9 @@ def map_incidents(
                 "time": row.time.isoformat(timespec="minutes") if row.time is not None else None,
                 "urban_or_rural_area": row.urban_or_rural_area,
                 "operational_priority": row.operational_priority,
+                "operational_priority_label": priority_label(
+                    row.operational_priority, row.priority_rank
+                ),
                 "status": row.status,
                 "latest_prediction": {
                     "prediction": row.predicted_severity,

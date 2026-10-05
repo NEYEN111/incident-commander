@@ -87,7 +87,7 @@ def test_maps_page_uses_leaflet_clustering_and_navigation(authenticated):
     assert response.status_code == 200
     assert "Mapa de accidentes" in response.text
     assert (
-        "Explora la ubicación de los accidentes y su última predicción de gravedad."
+        "Muestra dónde se encuentran los accidentes registrados y la última gravedad estimada por el modelo."
         in response.text
     )
     assert 'class="map-surface"' in response.text
@@ -187,11 +187,13 @@ def test_latest_prediction_is_scoped_and_operational_labels_are_separate(authent
         "time",
         "urban_or_rural_area",
         "operational_priority",
+        "operational_priority_label",
         "status",
         "latest_prediction",
     }
     assert all(set(item) == expected for item in items.values())
     assert items[first.id]["operational_priority"] == "Prioridad operativa urgente"
+    assert items[first.id]["operational_priority_label"] == "Prioridad operativa urgente"
     assert items[first.id]["status"] == "En atención"
     assert items[neutral.id]["operational_priority"] is None and items[neutral.id]["status"] is None
     assert "severity_level" not in str(data) and "color" not in str(data)

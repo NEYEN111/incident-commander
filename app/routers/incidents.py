@@ -9,6 +9,7 @@ from app.db import get_db
 from app.models import (
     Component,
     Incident,
+    IncidentPrediction,
     IncidentType,
     Role,
     SeverityLevel,
@@ -282,6 +283,32 @@ def detail(
             "latest_prediction": predictions[0] if predictions else None,
             "previous_predictions": predictions[1:],
         },
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/predictions/{prediction_id}/report", response_class=HTMLResponse
+)
+def prediction_report(
+    request: Request,
+    incident_id: int,
+    prediction_id: int,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    incident = db.get(Incident, incident_id)
+    prediction = db.scalar(
+        select(IncidentPrediction).where(
+            IncidentPrediction.id == prediction_id,
+            IncidentPrediction.incident_id == incident_id,
+        )
+    )
+    if incident is None or prediction is None:
+        return HTMLResponse("Predicción no encontrada", status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "prediction_report.html",
+        {"current_user": user, "i": incident, "prediction": prediction},
     )
 
 

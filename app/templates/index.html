@@ -13,20 +13,23 @@
 {% if _role and _role.value in ("admin", "incident_commander") %}
 <details class="accident-registration">
 <summary>Registrar accidente</summary>
+<p class="accident-help">Guarda la información básica del accidente. El análisis de gravedad con Machine Learning se realiza después, desde su detalle.</p>
 <form class="accident-create" method="post" action="/incidents">
   <div class="accident-identification">
-  <label class="field-block" for="create-title"><span>Título *</span><input id="create-title" name="title" placeholder="Resumen del accidente" required maxlength="300" autocomplete="off"></label>
-  <label class="field-block" for="create-priority"><span>Prioridad operativa</span>
+  <label class="field-block" for="create-title"><span>Título *</span><input id="create-title" name="title" placeholder="Resumen del accidente" required maxlength="300" autocomplete="off" aria-describedby="title-help"><span class="accident-help" id="title-help">Nombre breve para identificar el accidente.</span></label>
+  <label class="field-block" for="create-priority"><span>Prioridad de atención</span>
     <select id="create-priority" name="severity_level_id">
-    {% for lvl in severity_levels %}<option value="{{ lvl.id }}"{% if lvl.id == default_severity_level_id %} selected{% endif %}>{{ lvl.label }}</option>{% endfor %}
+    {% for lvl in severity_levels %}<option value="{{ lvl.id }}"{% if lvl.id == default_severity_level_id %} selected{% endif %}>{{ priority_display(lvl) }}</option>{% endfor %}
     </select>
   </label>
-  <label class="field-block accident-description" for="create-description"><span>Descripción</span><textarea id="create-description" name="description" placeholder="Descripción del accidente"></textarea></label>
+  <p class="accident-help accident-description">Indica qué tan prioritaria es la atención del accidente, según los niveles configurados. No es el resultado del Machine Learning.</p>
+  <label class="field-block accident-description" for="create-description"><span>Descripción (opcional)</span><textarea id="create-description" name="description" placeholder="Información adicional del accidente"></textarea></label>
   </div>
   <section class="accident-data" aria-labelledby="accident-data-title">
-    <h3 id="accident-data-title">Fecha y ubicación</h3>
-    <p class="accident-help">Estos datos son opcionales al registrar. Podrás completar el análisis ML desde el detalle del accidente.</p>
-    {% with road_data={}, field_prefix='create', road_field_names=['date', 'time', 'latitude', 'longitude'], road_section_title='', road_hide_heading=true %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+    <h3 id="accident-data-title">Fecha y hora</h3>
+    <p class="accident-help">Son opcionales al registrar, pero debes completarlas antes de estimar la gravedad: el modelo obtiene de ellas el día de la semana y la hora.</p>
+    {% with road_data={}, field_prefix='create', road_field_names=['date', 'time'], road_section_title='', road_hide_heading=true %}{% include "partials/road_field_inputs.html" %}{% endwith %}
+    {% with road_data={}, field_prefix='create', road_field_names=['latitude', 'longitude'], road_section_title='Ubicación del accidente (opcional)', road_heading_level=3 %}{% include "partials/road_field_inputs.html" %}{% endwith %}
   </section>
   <div class="accident-submit">
   <button class="btn btn-primary" type="submit">Registrar accidente</button>
@@ -39,7 +42,7 @@
 <h2 id="records-title">Registros</h2>
 <div class="incident-list" id="incident-list">
   {% for i in incidents %}{% include "partials/incident_row.html" %}{% endfor %}
-  <div class="empty">Todavía no hay accidentes registrados.</div>
+  {% if not incidents %}<div class="empty">Todavía no hay accidentes registrados.</div>{% endif %}
 </div>
 </section>
 {% endblock %}

@@ -65,16 +65,16 @@
     line("Fecha", accident.date ? accident.date.split("-").reverse().join("/") : "Sin datos");
     line("Hora", accident.time || "Sin datos");
     line("Zona", zones[accident.urban_or_rural_area] || "Sin datos");
-    line("Prioridad operativa", accident.operational_priority || "Sin datos");
+    line("Prioridad de atención", accident.operational_priority_label || accident.operational_priority || "Sin asignar");
     line("Estado", Object.hasOwn(statusLabels, accident.status)
       ? statusLabels[accident.status] : accident.status || "Sin datos");
     box.append(facts);
     const latest = accident.latest_prediction;
     const result = document.createElement("p"), label = document.createElement("span");
     result.className = "map-popup-result";
-    result.append(document.createTextNode("Última predicción ML: "));
+    result.append(document.createTextNode("Gravedad estimada: "));
     label.className = `map-popup-severity ${colors[latest?.prediction] || "neutral"}`;
-    label.textContent = latest ? latest.prediction : "Sin predicción ML";
+    label.textContent = latest ? latest.prediction : "Sin análisis ML";
     result.append(label);
     box.append(result);
     if (latest) {
@@ -125,7 +125,7 @@
           html: `<span aria-hidden="true">${symbols[severity] || "—"}</span>`,
           iconSize: [44, 44], iconAnchor: [22, 22],
         });
-        const name = `${accident.title || `Accidente ${accident.id}`} · ${severity || "Sin predicción ML"}`;
+        const name = `${accident.title || `Accidente ${accident.id}`} · ${severity || "Sin análisis ML"}`;
         return L.marker([accident.latitude, accident.longitude], {icon, title: name})
           .on("add", function () { this.getElement().setAttribute("aria-label", name); })
           .bindPopup(popup(accident), {maxWidth: 320, minWidth: 240});

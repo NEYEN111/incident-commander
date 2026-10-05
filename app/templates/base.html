@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <script src="/static/htmx.min.js" defer></script>
   <link rel="preload" href="/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/app.css?v=16">
+  <link rel="stylesheet" href="/static/app.css?v=18">
 </head>
 <body class="{% if current_user %}pilot-shell{% else %}{% block body_class %}{% endblock %}{% endif %}">
   <a class="pilot-skip" href="#main-content">Saltar al contenido</a>
@@ -27,6 +27,7 @@
         {{ nav_link('/maps', 'Mapa de accidentes', _p.startswith('/maps')) }}
         {{ nav_link('/insights', 'Estadísticas', _p.startswith('/insights')) }}
         {{ nav_link('/follow-ups', 'Seguimiento', _p.startswith('/follow-ups')) }}
+        {{ nav_link('/about', 'Sobre el proyecto', _p == '/about') }}
       </nav>
       {% if _is_admin %}
       <nav class="pilot-nav pilot-admin" aria-label="Administración">

@@ -93,7 +93,7 @@ def test_predict_saves_snapshot_and_renders_result_without_changing_accident(
         column.key: deepcopy(getattr(incident, column.key))
         for column in Incident.__mapper__.column_attrs
     }
-    assert "Analizar con ML" in client.get(f"/incidents/{incident.id}").text
+    assert "Estimar gravedad con ML" in client.get(f"/incidents/{incident.id}").text
     response = client.post(f"/incidents/{incident.id}/predict", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == f"/incidents/{incident.id}#ml-result-title"
@@ -109,11 +109,11 @@ def test_predict_saves_snapshot_and_renders_result_without_changing_accident(
     } == before
     assert incident.severity_level_id == before["severity_level_id"]
     html = client.get(f"/incidents/{incident.id}").text
-    assert "Análisis de gravedad con ML" in html
+    assert "Análisis de gravedad con Machine Learning" in html
     assert f"Gravedad estimada: {prediction.predicted_severity}" in html
     assert f"{prediction.prob_grave * 100:.1f}%" in html
-    assert "Probabilidades estimadas" in html and "Volver a analizar" in html
-    assert "La predicción del modelo es independiente de la prioridad operativa." in html
+    assert "Probabilidades estimadas" in html and "Volver a estimar gravedad" in html
+    assert "La gravedad estimada por ML es independiente de la prioridad de atención." in html
     incident.speed_limit = 70
     db_session.commit()
     db_session.refresh(prediction)
@@ -219,8 +219,8 @@ def test_latest_and_five_previous_predictions_are_scoped_and_ordered(
     home = client.get("/").text
     own_row = home.split(f'id="incident-{incident.id}"', 1)[1].split('class="incident"', 1)[0]
     other_row = home.split(f'id="incident-{other.id}"', 1)[1].split('class="incident"', 1)[0]
-    assert "ML: Grave" in own_row and "ML: Fatal" not in own_row
-    assert "ML: Fatal" in other_row and "ML: Grave" not in other_row
+    assert "Gravedad estimada: Grave" in own_row and "Gravedad estimada: Fatal" not in own_row
+    assert "Gravedad estimada: Fatal" in other_row and "Gravedad estimada: Grave" not in other_row
     html = client.get(f"/incidents/{incident.id}").text
     assert "Gravedad estimada: Grave" in html
     assert "12.3%" in html and "55.8%" in html and "31.9%" in html
@@ -251,7 +251,7 @@ def test_readonly_can_view_but_cannot_generate_prediction(registered_accident, d
         == 403
     )
     html = client.get(f"/incidents/{incident.id}").text
-    assert "Análisis de gravedad con ML" in html
+    assert "Análisis de gravedad con Machine Learning" in html
     assert f'action="/incidents/{incident.id}/predict"' not in html
     assert db_session.scalar(select(func.count()).select_from(IncidentPrediction)) == 0
     db_session.refresh(incident)
@@ -261,6 +261,72 @@ def test_readonly_can_view_but_cannot_generate_prediction(registered_accident, d
 def test_prediction_of_unknown_incident_returns_404(registered_accident):
     client, _, _ = registered_accident
     assert client.post("/incidents/999999/predict", follow_redirects=False).status_code == 404
+
+
+def test_report_keeps_snapshot_after_edit_and_requires_matching_accident(
+    registered_accident, db_session, monkeypatch
+):
+    client, incident, user = registered_accident
+    snapshot = prediction_request_from_incident(incident).model_dump()
+    prediction = IncidentPrediction(
+        incident_id=incident.id,
+        created_by=user.id,
+        predicted_severity="Grave",
+        prob_fatal=0.1,
+        prob_grave=0.6,
+        prob_leve=0.3,
+        model_version="saved-version",
+        input_data=snapshot,
+    )
+    other = Incident(title="Otro", creation_state={})
+    db_session.add_all([prediction, other])
+    incident.speed_limit = 70
+    incident.time = time(23, 59)
+    db_session.commit()
+
+    def never_predict():
+        pytest.fail("Consultar una ficha no debe ejecutar el modelo")
+
+    monkeypatch.setattr("app.services.incident_predictions.get_predictor", never_predict)
+    path = f"/incidents/{incident.id}/predictions/{prediction.id}/report"
+    response = client.get(path)
+    assert response.status_code == 200
+    html = response.text
+    assert "GRAVE" in html and "60.0%" in html and "saved-version" in html
+    assert "30 mph" in html and "70 mph" not in html
+    assert "14 h" in html and "23:59" in html
+    assert "Prioridad de atención actual" in html and "SEV2" in html
+    assert "Domingo" in html and html.count('data-input="') == 9
+    assert path in client.get(f"/incidents/{incident.id}").text
+    assert (
+        client.get(f"/incidents/{other.id}/predictions/{prediction.id}/report").status_code == 404
+    )
+    assert client.get(f"/incidents/{incident.id}/predictions/999999/report").status_code == 404
+    assert db_session.scalar(select(func.count()).select_from(IncidentPrediction)) == 1
+    db_session.refresh(prediction)
+    assert prediction.input_data == snapshot
+    db_session.refresh(incident)
+    assert incident.speed_limit == 70 and incident.time == time(23, 59)
+
+    reader = create_user(
+        db_session,
+        email="report-reader@test.local",
+        name="Consulta",
+        role=Role.read_only,
+        password="password123",
+    )
+    db_session.commit()
+    client.get("/logout")
+    assert client.get(path, follow_redirects=False).status_code == 303
+    assert client.get("/about", follow_redirects=False).headers["location"] == "/login"
+    client.post("/login", data={"email": reader.email, "password": "password123"})
+    assert client.get(path).status_code == 200
+    about = client.get("/about")
+    assert about.status_code == 200
+    assert "81 220" in about.text and "20 305" in about.text
+    assert "La prioridad de atención es una decisión humana" in about.text
+    assert "no confirma lesiones ni fallecimientos" in about.text
+    assert "ejemplos identificados como DEMO son sintéticos" in about.text
 
 
 def test_model_failure_returns_to_detail_with_message(registered_accident, db_session, monkeypatch):
@@ -324,7 +390,7 @@ def test_quick_registration_then_manual_analysis_keeps_operational_data_and_hist
     assert first.prob_fatal + first.prob_grave + first.prob_leve == pytest.approx(1)
     html = client.get(f"/incidents/{incident.id}").text
     assert f"Gravedad estimada: {first.predicted_severity}" in html
-    assert "La predicción del modelo es independiente de la prioridad operativa" in html
+    assert "La gravedad estimada por ML es independiente de la prioridad de atención" in html
     snapshot = deepcopy(first.input_data)
     client.post(
         f"/incidents/{incident.id}/edit",
@@ -447,5 +513,5 @@ def test_ml_result_has_semantic_outcome_and_real_probability_bars(registered_acc
     for probability in [prediction.prob_leve, prediction.prob_grave, prediction.prob_fatal]:
         assert f"width: {probability * 100}%" in html
         assert f"{probability * 100:.1f}%" in html
-    assert html.index("Volver a analizar</button>") < html.index('<div class="ml-result"')
+    assert html.index("Volver a estimar gravedad</button>") < html.index('<div class="ml-result"')
     assert incident.severity_level_id is not None

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Sobre el proyecto · {{ app_name }}{% endblock %}
+{% block page_surface %}accident-page academic-surface{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/academic.css?v=1">
+<article class="academic-sheet">
+  <header><p class="academic-eyebrow">Proyecto académico</p><h1>Machine Learning aplicado a accidentes viales</h1>
+    <p>Estimamos la gravedad de un accidente a partir de las características de la vía, el entorno y los vehículos involucrados.</p></header>
+  <section><h2>Qué hace el sistema</h2>
+    <p>Un modelo entrenado con accidentes históricos clasifica un registro como <strong>Fatal, Grave o Leve</strong> y muestra probabilidades estimadas para las tres clases. La clasificación es una estimación; no confirma lesiones ni fallecimientos.</p>
+    <ol><li>Registra un accidente y completa sus datos.</li><li>Ejecuta el análisis con el modelo ya entrenado.</li><li>Consulta el resultado, sus probabilidades y el historial guardado.</li><li>Explora los resultados en Estadísticas y ubica los registros con coordenadas en el Mapa.</li></ol>
+    <p><strong>La prioridad de atención es una decisión humana para organizar la atención.</strong> Los códigos SEV se presentan como niveles configurados, por ejemplo «Nivel 1 (SEV1)». No significan automáticamente Alta, Media o Baja y no son las clases que predice el modelo.</p>
+  </section>
+  <section><h2>Datos y modelo</h2>
+    {% if model_evaluation %}<p>Usamos {{ model_evaluation.dataset }}: {{ '{:,}'.format(model_evaluation.rows).replace(',', ' ') }} registros, con {{ '{:,}'.format(model_evaluation.train_rows).replace(',', ' ') }} para entrenamiento y {{ '{:,}'.format(model_evaluation.test_rows).replace(',', ' ') }} para prueba, mediante una separación estratificada 80/20.</p>{% endif %}
+    {% if model_info %}<p>El modelo es <strong>Random Forest</strong>, una combinación de {{ model_info.parametros.n_estimators }} árboles. Aprende patrones durante el entrenamiento; al pulsar «Estimar gravedad con ML» recibe las once características y calcula probabilidades para Fatal, Grave y Leve, sin volver a entrenarse.</p>{% endif %}
+    <p>Los accidentes registrados en esta web son independientes de los datos utilizados para entrenar el modelo. Los ejemplos identificados como DEMO son sintéticos.</p>
+    <h3>Las once variables</h3>
+    <ul class="academic-variables"><li>Día de la semana</li><li>Hora</li><li>Tipo de vía</li><li>Límite de velocidad (mph)</li><li>Zona urbana o rural</li><li>Condiciones de iluminación</li><li>Condiciones meteorológicas</li><li>Estado de la superficie</li><li>Número de vehículos</li><li>Tipo de intersección</li><li>Clase de la vía</li></ul>
+    <p>El día de la semana y la hora se derivan de la fecha y hora del accidente. Las velocidades se mantienen en millas por hora (mph), como en los datos británicos.</p>
+  </section>
+  <section><h2>Cómo interpretar el resultado</h2>
+    <p>La clase con mayor probabilidad estimada es la predicción. Si Leve tiene 49 %, Grave 41 % y Fatal 10 %, el resultado es Leve, pero la diferencia con Grave es pequeña. Es un ejemplo ilustrativo, no una certeza sobre un accidente real.</p>
+    <p>Cada análisis guarda sus once entradas, probabilidades, fecha y versión del modelo. El resultado se refleja en Estadísticas y, si el accidente tiene coordenadas, en el Mapa. Editar un accidente no cambia los análisis anteriores. La ficha permite revisar exactamente las entradas utilizadas.</p>
+  </section>
+  <section><h2>Alcance y limitaciones</h2>
+    <p>El rendimiento es limitado, especialmente en Fatal, una clase poco frecuente. Los porcentajes del modelo no son una medida validada de riesgo real. Una predicción Leve no significa que el accidente sea seguro.</p>
+    <p>La evaluación corresponde al conjunto de prueba documentado; no mide el acierto sobre los registros DEMO. La aplicación a otros países, incluido Perú, requiere una evaluación con datos de ese contexto.</p>
+    <p><a href="/insights?days=0#model-title">Consultar métricas y evaluación por clase</a>. El mapa muestra ubicaciones registradas; no predice dónde ocurrirán accidentes.</p>
+  </section>
+  <nav class="academic-actions" aria-label="Continuar con el proyecto"><a class="btn btn-primary" href="/">Ver accidentes</a><a href="/insights?days=0">Ver estadísticas</a></nav>
+</article>
+{% endblock %}

@@ -26,6 +26,7 @@
         {{ nav_link('/', 'Accidentes', _p == '/' or _p.startswith('/incidents')) }}
         {{ nav_link('/maps', 'Mapa de accidentes', _p.startswith('/maps')) }}
         {{ nav_link('/insights', 'Estadísticas', _p.startswith('/insights')) }}
+        {{ nav_link('/assistant', 'Asistente IA', _p.startswith('/assistant')) }}
         {{ nav_link('/follow-ups', 'Seguimiento', _p.startswith('/follow-ups')) }}
         {{ nav_link('/about', 'Sobre el proyecto', _p == '/about') }}
       </nav>

@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Mark the session cookie Secure (HTTPS-only). Defaults True for the
     # production HTTPS posture; set SESSION_HTTPS_ONLY=false for plain-HTTP local dev.
     session_https_only: bool = True
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = ""
 
     @field_validator("fernet_keys", mode="before")
     @classmethod

@@ -11,6 +11,7 @@ from app.config import Settings, get_settings
 from app.crypto import build_fernet, set_fernet
 from app.i18n import APP_NAME
 from app.routers import account as account_router
+from app.routers import assistant as assistant_router
 from app.routers import auth as auth_router
 from app.routers import connections as connections_router
 from app.routers import followups as followups_router
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(maps_router.router)
     app.include_router(followups_router.router)
     app.include_router(insights_router.router)
+    app.include_router(assistant_router.router)
     app.include_router(ingest_router.router)
     app.include_router(prediction_router.router)
     return app

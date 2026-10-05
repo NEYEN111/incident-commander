@@ -36,6 +36,24 @@ gravedad estimada, no por la prioridad.
 
 ## Machine Learning
 
+### Asistente IA (opcional)
+
+La página `/assistant` permite seleccionar un accidente y preguntar por su análisis.
+Consulta los once datos actuales con el mismo Random Forest, sin guardar predicciones
+ni modificar el historial. Gemini explica el resultado; no reemplaza al modelo ML.
+
+Configura `GEMINI_API_KEY` únicamente en el entorno del servidor y, opcionalmente,
+`GEMINI_MODEL` con un modelo Flash disponible para tu cuenta. Si el modelo queda vacío,
+se utiliza `gemini-3.8-flash`. Sin clave, el sistema arranca y ML sigue funcionando.
+No incluyas credenciales reales en Git. Reinicia el servidor después de cambiar el entorno.
+
+Se envían a Gemini la pregunta, las once variables y el resultado de la inferencia;
+no se envían automáticamente título, descripción, coordenadas ni prioridad de atención.
+La conversación no se persiste: cada pregunta usa los datos actuales del accidente.
+Las explicaciones pueden contener errores y no constituyen explicabilidad causal.
+
+### Modelo de gravedad
+
 - Modelo: `RandomForestClassifier` (150 árboles, `max_depth=16`, `min_samples_leaf=5`,
   `class_weight=balanced_subsample`, `random_state=42`) dentro de un `Pipeline` de scikit-learn 1.6.1.
 - Datos: STATS19, colisiones viales 2025, Department for Transport (Reino Unido), 101 525 registros.

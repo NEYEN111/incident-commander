@@ -1,0 +1,29 @@
+.assistant-page { max-width: 880px; }
+.assistant-components { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 0 0 24px; }
+.assistant-components dt { font-weight: 600; }
+.assistant-components dd { margin: 4px 0 0; color: var(--ink-2); }
+.assistant-section { padding: 24px; margin-top: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.assistant-section h2 { margin-bottom: 16px; }
+.assistant-select { display: flex; align-items: end; gap: 16px; }
+.assistant-select .field-block { flex: 1; min-width: 0; }
+.assistant-section .field-block { margin-bottom: 16px; }
+.assistant-section .assistant-select .field-block { margin-bottom: 0; }
+.assistant-page .btn:disabled { background: #F2F4F7; border-color: #7C8796; color: #667085; opacity: 1; cursor: not-allowed; }
+.assistant-page textarea:disabled { background: #F2F4F7; color: #667085; cursor: not-allowed; }
+.assistant-inputs summary { cursor: pointer; min-height: 44px; padding-block: 12px; color: var(--accent); }
+.assistant-data { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.assistant-data dt { font-weight: 500; }
+.assistant-data dd { margin: 4px 0 0; color: var(--ink-2); }
+.assistant-status { color: var(--ink-2); }
+.assistant-error { color: #B42318; background: #FEF3F2; border-left: 2px solid #B42318; padding: 12px 16px; }
+.assistant-exchange { border-top: 1px solid var(--line); padding-block: 24px; }
+.assistant-exchange h3 { font-size: 16px; line-height: 24px; }
+.assistant-reference { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.assistant-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.assistant-page .htmx-indicator { display: none; color: var(--ink-2); margin-left: 12px; }
+.assistant-page .htmx-request .htmx-indicator, .assistant-page .htmx-request.htmx-indicator { display: inline; opacity: 1; }
+@media (max-width: 700px) {
+  .assistant-components, .assistant-data { grid-template-columns: minmax(0, 1fr); }
+  .assistant-section { padding: 16px; }
+  .assistant-select { flex-direction: column; align-items: stretch; }
+}

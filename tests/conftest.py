@@ -1,6 +1,9 @@
+import logging
 import os
+from pathlib import Path
 
 import pytest
+from alembic.config import Config
 from cryptography.fernet import Fernet
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,6 +25,29 @@ from app.crypto import build_fernet, set_fernet  # noqa: E402
 @pytest.fixture(scope="session", autouse=True)
 def _fernet():
     set_fernet(build_fernet([_KEY]))
+
+
+@pytest.fixture
+def migration_config():
+    """Run real migrations without applying CLI logging configuration to pytest."""
+    source = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config = Config()
+    for key, value in source.get_section(source.config_ini_section).items():
+        config.set_main_option(key, value.replace("%", "%%"))
+
+    # env.py calls fileConfig only for file-backed configurations. Keep the
+    # migration options, but let pytest retain ownership of process logging.
+    loggers = (logging.getLogger(), logging.getLogger("app.services.llm_assistant"))
+
+    def logging_state():
+        return (
+            logging.root.manager.disable,
+            tuple((log.disabled, log.propagate, log.level, tuple(log.handlers)) for log in loggers),
+        )
+
+    before = logging_state()
+    yield config
+    assert logging_state() == before, "Migration test changed global logging state"
 
 
 @pytest.fixture(scope="session")

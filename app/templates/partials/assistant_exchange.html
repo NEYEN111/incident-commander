@@ -1,0 +1,11 @@
+<article class="assistant-exchange" aria-label="Pregunta y respuesta">
+  <h3>Tu pregunta</h3>
+  <p class="assistant-text">{{ question }}</p>
+  {% if analysis %}
+  <p class="assistant-reference">Random Forest: <strong>{{ analysis.result.prediction }}</strong> · Modelo {{ analysis.result.model_version }}.<br>
+    {% for label, probability in analysis.result.probabilities.model_dump().items() %}{{ label }} {{ '%.1f' | format(probability * 100) }} %{{ ' · ' if not loop.last else '' }}{% endfor %}
+  </p>
+  {% endif %}
+  {% if answer %}<h3>Explicación de Gemini</h3><p class="assistant-text">{{ answer }}</p>
+  {% else %}<p class="assistant-error" role="alert">{{ error }}</p>{% endif %}
+</article>

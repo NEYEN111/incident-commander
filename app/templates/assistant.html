@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Asistente IA · {{ app_name }}{% endblock %}
+{% block page_surface %}accident-page assistant-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/assistant.css?v=2">
+<header class="accident-heading">
+  <h1>Asistente IA</h1>
+  <p>Consulta en lenguaje natural los resultados del modelo de Machine Learning. El asistente utiliza el Random Forest del proyecto para realizar la estimación y un LLM para explicar el resultado.</p>
+</header>
+<dl class="assistant-components">
+  <div><dt>Machine Learning</dt><dd>Random Forest → Fatal / Grave / Leve</dd></div>
+  <div><dt>IA generativa</dt><dd>Gemini → explicación conversacional</dd></div>
+</dl>
+<section class="assistant-section" aria-labelledby="assistant-accident-title">
+  <h2 id="assistant-accident-title">Selecciona un accidente</h2>
+  <form method="get" action="/assistant" class="assistant-select">
+    <label class="field-block" for="assistant-incident"><span>Accidente registrado</span>
+      <select id="assistant-incident" name="incident_id" required{% if not incidents %} disabled{% endif %}>
+        <option value="">Selecciona un accidente</option>
+        {% for item in incidents %}<option value="{{ item.id }}"{% if incident and item.id == incident.id %} selected{% endif %}>{{ item.title }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit"{% if not incidents %} disabled{% endif %}>Consultar accidente</button>
+  </form>
+  {% if not incidents %}<p class="accident-help">Todavía no hay accidentes registrados. Consulta la sección <a href="/">Accidentes</a>.</p>{% endif %}
+  <p class="accident-help">Se utilizan los datos actuales del accidente. Esta consulta no guarda predicciones ni modifica su historial. Para guardar un análisis, usa el detalle del accidente.</p>
+  {% if incident %}<p><a href="/incidents/{{ incident.id }}">Ver accidente: {{ incident.title }}</a></p>{% endif %}
+  {% if error and not question %}<p class="assistant-error" role="alert">{{ error }}</p>{% endif %}
+</section>
+{% if analysis %}
+<section class="assistant-section" aria-labelledby="assistant-ml-title">
+  <h2 id="assistant-ml-title">Resultado del Random Forest</h2>
+  <p class="ml-severity ml-{{ analysis.result.prediction | lower }}">{{ analysis.result.prediction | upper }}</p>
+  <p class="accident-help">Probabilidades estimadas · Modelo {{ analysis.result.model_version }}</p>
+  <dl class="ml-probabilities">
+    {% for label, probability in analysis.result.probabilities.model_dump().items() %}
+    <div class="ml-probability ml-{{ label | lower }}"><dt>{{ label }}</dt><dd><span class="ml-probability-track" aria-hidden="true"><span style="width: {{ probability * 100 }}%"></span></span><span>{{ '%.1f' | format(probability * 100) }} %</span></dd></div>
+    {% endfor %}
+  </dl>
+  <p class="accident-help">El resultado lo calcula el Random Forest, no Gemini. Las probabilidades no representan certeza ni riesgo real validado. La gravedad estimada es independiente de la prioridad de atención.</p>
+  <details class="assistant-inputs"><summary>Ver los 11 datos utilizados</summary>
+    <dl class="assistant-data">{% for row in analysis.input_rows() %}<div><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>{% endfor %}</dl>
+  </details>
+</section>
+{% endif %}
+<section class="assistant-section" aria-labelledby="assistant-chat-title">
+  <h2 id="assistant-chat-title">Pregunta al asistente</h2>
+  <p class="accident-help">Por ejemplo: «Explícame este resultado», «¿Qué datos se utilizaron?» o «¿Por qué debo interpretarlo con cuidado?»</p>
+  {% if not configured %}<p class="assistant-status" role="status">El asistente LLM no está configurado en este entorno. El resto de Machine Learning sigue disponible.</p>
+  {% elif not incident %}<p class="assistant-status">Selecciona y consulta un accidente antes de preguntar.</p>
+  {% elif not analysis %}<p class="assistant-status">Completa los datos indicados en el detalle del accidente y vuelve a consultarlo.</p>{% endif %}
+  <div id="assistant-exchanges" role="log" aria-live="polite" aria-label="Conversación con Gemini">
+    {% if question %}{% include "partials/assistant_exchange.html" %}{% endif %}
+  </div>
+  <form method="post" action="/assistant/ask" hx-post="/assistant/ask" hx-target="#assistant-exchanges" hx-swap="beforeend" hx-sync="this:drop" hx-disabled-elt="find button" hx-indicator="#assistant-loading">
+    {% if incident %}<input type="hidden" name="incident_id" value="{{ incident.id }}">{% endif %}
+    <label class="field-block" for="assistant-question"><span>Tu pregunta</span>
+      <textarea id="assistant-question" name="question" rows="3" maxlength="2000" required aria-describedby="assistant-chat-help"{% if not configured or not analysis %} disabled{% endif %}></textarea>
+    </label>
+    <p class="accident-help" id="assistant-chat-help">Gemini recibe tu pregunta, los once datos utilizados y el resultado del modelo. Cada pregunta consulta los datos actuales; no se guarda la conversación y al cambiar de accidente empieza una consulta nueva.</p>
+    <button class="btn btn-primary" type="submit"{% if not configured or not analysis %} disabled{% endif %}>Enviar pregunta</button>
+    <span id="assistant-loading" class="htmx-indicator" role="status">Consultando el modelo y preparando la explicación…</span>
+  </form>
+  <p class="accident-help">La explicación es generada por IA y puede contener errores. No demuestra qué variable causó la predicción ni sustituye una valoración del accidente. No ofrece recomendaciones de emergencia, médicas, legales ni policiales.</p>
+</section>
+{% endblock %}

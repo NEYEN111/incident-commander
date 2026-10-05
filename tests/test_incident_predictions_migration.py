@@ -1,8 +1,6 @@
-from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
@@ -10,13 +8,15 @@ from app.models import Incident, IncidentPrediction, Role
 from app.services.users import create_user
 
 
-def test_prediction_history_migration_preserves_accident_and_stores_json(pg_engine, monkeypatch):
+def test_prediction_history_migration_preserves_accident_and_stores_json(
+    pg_engine, monkeypatch, migration_config
+):
     name = "prediction_migration_" + uuid4().hex
     with pg_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
         connection.execute(text(f'CREATE DATABASE "{name}"'))
     url = pg_engine.url.set(database=name).render_as_string(hide_password=False)
     monkeypatch.setenv("DATABASE_URL", url)
-    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config = migration_config
     engine = create_engine(url)
     try:
         command.upgrade(config, "0019_incident_ml_fields")

@@ -40,14 +40,14 @@ gravedad estimada, no por la prioridad.
 
 La página `/assistant` permite seleccionar un accidente y preguntar por su análisis.
 Consulta los once datos actuales con el mismo Random Forest, sin guardar predicciones
-ni modificar el historial. Gemini explica el resultado; no reemplaza al modelo ML.
+ni modificar el historial. DeepSeek vía Hive explica el resultado; no reemplaza al modelo ML.
 
-Configura `GEMINI_API_KEY` únicamente en el entorno del servidor y, opcionalmente,
-`GEMINI_MODEL` con un modelo Flash disponible para tu cuenta. Si el modelo queda vacío,
-se utiliza `gemini-3.8-flash`. Sin clave, el sistema arranca y ML sigue funcionando.
+Configura `HIVE_API_KEY` únicamente en el entorno del servidor. `HIVE_MODEL` utiliza
+por defecto `deepseek-ai/deepseek-v4.1-flash` y `HIVE_BASE_URL` utiliza
+`https://api-cdn.thehive.ai/api/v3`. Sin clave, el sistema arranca y ML sigue funcionando.
 No incluyas credenciales reales en Git. Reinicia el servidor después de cambiar el entorno.
 
-Se envían a Gemini la pregunta, las once variables y el resultado de la inferencia;
+Se envían a DeepSeek vía Hive la pregunta, las once variables y el resultado de la inferencia;
 no se envían automáticamente título, descripción, coordenadas ni prioridad de atención.
 La conversación no se persiste: cada pregunta usa los datos actuales del accidente.
 Las explicaciones pueden contener errores y no constituyen explicabilidad causal.

@@ -9,7 +9,7 @@
 </header>
 <dl class="assistant-components">
   <div><dt>Machine Learning</dt><dd>Random Forest → Fatal / Grave / Leve</dd></div>
-  <div><dt>IA generativa</dt><dd>Gemini → explicación conversacional</dd></div>
+  <div><dt>IA generativa</dt><dd>DeepSeek vía Hive → explicación conversacional</dd></div>
 </dl>
 <section class="assistant-section" aria-labelledby="assistant-accident-title">
   <h2 id="assistant-accident-title">Selecciona un accidente</h2>
@@ -37,7 +37,7 @@
     <div class="ml-probability ml-{{ label | lower }}"><dt>{{ label }}</dt><dd><span class="ml-probability-track" aria-hidden="true"><span style="width: {{ probability * 100 }}%"></span></span><span>{{ '%.1f' | format(probability * 100) }} %</span></dd></div>
     {% endfor %}
   </dl>
-  <p class="accident-help">El resultado lo calcula el Random Forest, no Gemini. Las probabilidades no representan certeza ni riesgo real validado. La gravedad estimada es independiente de la prioridad de atención.</p>
+  <p class="accident-help">El resultado lo calcula el Random Forest, no DeepSeek. Las probabilidades no representan certeza ni riesgo real validado. La gravedad estimada es independiente de la prioridad de atención.</p>
   <details class="assistant-inputs"><summary>Ver los 11 datos utilizados</summary>
     <dl class="assistant-data">{% for row in analysis.input_rows() %}<div><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>{% endfor %}</dl>
   </details>
@@ -49,7 +49,7 @@
   {% if not configured %}<p class="assistant-status" role="status">El asistente LLM no está configurado en este entorno. El resto de Machine Learning sigue disponible.</p>
   {% elif not incident %}<p class="assistant-status">Selecciona y consulta un accidente antes de preguntar.</p>
   {% elif not analysis %}<p class="assistant-status">Completa los datos indicados en el detalle del accidente y vuelve a consultarlo.</p>{% endif %}
-  <div id="assistant-exchanges" role="log" aria-live="polite" aria-label="Conversación con Gemini">
+  <div id="assistant-exchanges" role="log" aria-live="polite" aria-label="Conversación con DeepSeek">
     {% if question %}{% include "partials/assistant_exchange.html" %}{% endif %}
   </div>
   <form method="post" action="/assistant/ask" hx-post="/assistant/ask" hx-target="#assistant-exchanges" hx-swap="beforeend" hx-sync="this:drop" hx-disabled-elt="find button" hx-indicator="#assistant-loading">
@@ -57,7 +57,7 @@
     <label class="field-block" for="assistant-question"><span>Tu pregunta</span>
       <textarea id="assistant-question" name="question" rows="3" maxlength="2000" required aria-describedby="assistant-chat-help"{% if not configured or not analysis %} disabled{% endif %}></textarea>
     </label>
-    <p class="accident-help" id="assistant-chat-help">Gemini recibe tu pregunta, los once datos utilizados y el resultado del modelo. Cada pregunta consulta los datos actuales; no se guarda la conversación y al cambiar de accidente empieza una consulta nueva.</p>
+    <p class="accident-help" id="assistant-chat-help">DeepSeek vía Hive recibe tu pregunta, los once datos utilizados y el resultado del modelo. Cada pregunta consulta los datos actuales; no se guarda la conversación y al cambiar de accidente empieza una consulta nueva.</p>
     <button class="btn btn-primary" type="submit"{% if not configured or not analysis %} disabled{% endif %}>Enviar pregunta</button>
     <span id="assistant-loading" class="htmx-indicator" role="status">Consultando el modelo y preparando la explicación…</span>
   </form>

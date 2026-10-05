@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     # Mark the session cookie Secure (HTTPS-only). Defaults True for the
     # production HTTPS posture; set SESSION_HTTPS_ONLY=false for plain-HTTP local dev.
     session_https_only: bool = True
-    gemini_api_key: SecretStr = SecretStr("")
-    gemini_model: str = ""
+    hive_api_key: SecretStr = SecretStr("")
+    hive_model: str = "deepseek-ai/deepseek-v4.1-flash"
+    hive_base_url: str = "https://api-cdn.thehive.ai/api/v3"
 
     @field_validator("fernet_keys", mode="before")
     @classmethod

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Client, HTTPStatusError, MockTransport, Request, Response
 from pydantic import SecretStr
 from sqlalchemy import func, select
 
@@ -38,7 +39,11 @@ ROAD_DATA = {
 @pytest.fixture
 def llm(monkeypatch):
     settings = get_settings().model_copy(
-        update={"gemini_api_key": SecretStr(KEY), "gemini_model": "custom-flash"}
+        update={
+            "hive_api_key": SecretStr(KEY),
+            "hive_model": "custom-flash",
+            "hive_base_url": "https://hive.test/api/v3/",
+        }
     )
     monkeypatch.setattr(service, "get_settings", lambda: settings)
     predictor = MagicMock()
@@ -48,15 +53,15 @@ def llm(monkeypatch):
         model_version="rf-test",
     )
     monkeypatch.setattr(service, "get_predictor", lambda: predictor)
-    from google import genai
-
     client = MagicMock()
     client.__enter__.return_value = client
-    client.models.generate_content.return_value = SimpleNamespace(
-        text="El Random Forest estima Grave. No representa certeza."
-    )
+    client.post.return_value.json.return_value = {
+        "choices": [
+            {"message": {"content": "El Random Forest estima Grave. No representa certeza."}}
+        ]
+    }
     factory = MagicMock(return_value=client)
-    monkeypatch.setattr(genai, "Client", factory)
+    monkeypatch.setattr(service, "Client", factory)
     return SimpleNamespace(settings=settings, predictor=predictor, client=client, factory=factory)
 
 
@@ -103,7 +108,8 @@ def test_page_and_navigation_load_for_readonly(authenticated, llm):
     html = client.get("/assistant").text
     assert 'href="/assistant" class="active" aria-current="page"' in html
     assert "Random Forest → Fatal / Grave / Leve" in html
-    assert "Gemini → explicación conversacional" in html
+    assert "DeepSeek vía Hive → explicación conversacional" in html
+    assert "Gemini" not in html
     assert "Todavía no hay accidentes registrados" in html
     assert KEY not in html
     llm.predictor.predict.assert_not_called()
@@ -149,7 +155,7 @@ def test_selection_uses_exact_inputs_and_does_not_save(authenticated, accident, 
         ("weather_conditions", "Condiciones meteorológicas"),
     ],
 )
-def test_missing_data_never_calls_predictor_or_gemini(
+def test_missing_data_never_calls_predictor_or_hive(
     authenticated, accident, db_session, llm, field, label
 ):
     client, _ = authenticated
@@ -192,22 +198,44 @@ def test_explanation_receives_only_real_inference_context(authenticated, acciden
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    call = llm.client.models.generate_content.call_args.kwargs
-    payload = json.loads(call["contents"])
+    llm.client.post.assert_called_once()
+    assert llm.client.post.call_args.args == ("https://hive.test/api/v3/chat/completions",)
+    call = llm.client.post.call_args.kwargs
+    body = call["json"]
+    assert set(body) == {"model", "messages", "stream", "reasoning_effort", "max_completion_tokens"}
+    assert len(body["messages"]) == 2
+    assert body["messages"][0] == {"role": "system", "content": service.SYSTEM_INSTRUCTION}
+    assert body["messages"][1]["role"] == "user"
+    contents = body["messages"][1]["content"]
+    payload = json.loads(contents)
     assert payload["variables"] == prediction_request_from_incident(accident).model_dump()
     assert len(payload["variables"]) == 11 and len(payload["datos_legibles"]) == 11
     assert payload["resultado_random_forest"] == llm.predictor.predict.return_value.model_dump()
     assert payload["pregunta"] == "¿Qué probabilidades estimó?"
-    assert KEY not in call["contents"]
-    assert "Texto privado" not in call["contents"] and accident.title not in call["contents"]
-    assert "latitude" not in call["contents"] and "longitude" not in call["contents"]
+    assert KEY not in contents
+    assert "Texto privado" not in contents and accident.title not in contents
+    assert "latitude" not in contents and "longitude" not in contents
     assert "day_of_week" not in response.text
     assert "18.0 %" in response.text and "57.0 %" in response.text and "25.0 %" in response.text
-    assert call["model"] == "custom-flash"
-    api_key = llm.factory.call_args.kwargs["api_key"]
-    assert type(api_key) is str
-    assert api_key == llm.settings.gemini_api_key.get_secret_value()
-    assert call["config"].system_instruction == service.SYSTEM_INSTRUCTION
+    assert body["model"] == "custom-flash"
+    assert body["stream"] is False
+    assert body["reasoning_effort"] == "none"
+    assert body["max_completion_tokens"] == 600
+    for instruction in (
+        "texto plano, sin Markdown",
+        "no uses **, #, tablas Markdown ni backticks",
+        "porcentajes con una decimal",
+        "0.095 se muestra como 9.5 %",
+        "incluye las 11 variables completas",
+    ):
+        assert instruction in body["messages"][0]["content"]
+    assert call["headers"] == {
+        "Authorization": f"Bearer {llm.settings.hive_api_key.get_secret_value()}",
+        "Content-Type": "application/json",
+    }
+    assert type(call["headers"]["Authorization"]) is str
+    llm.factory.assert_called_once_with(timeout=30.0)
+    llm.client.post.return_value.raise_for_status.assert_called_once_with()
     assert "No hay SHAP" in service.SYSTEM_INSTRUCTION
     assert KEY not in response.text
     assert db_session.scalar(select(func.count()).select_from(IncidentPrediction)) == 1
@@ -219,7 +247,7 @@ def test_explanation_receives_only_real_inference_context(authenticated, acciden
 
 def test_no_key_keeps_app_and_ml_available(authenticated, accident, llm):
     client, _ = authenticated
-    llm.settings.gemini_api_key = SecretStr("")
+    llm.settings.hive_api_key = SecretStr("")
     response = client.get(f"/assistant?incident_id={accident.id}")
     assert "El asistente LLM no está configurado en este entorno" in response.text
     assert "GRAVE" in response.text
@@ -234,43 +262,114 @@ def test_no_key_keeps_app_and_ml_available(authenticated, accident, llm):
 
 def test_blank_model_uses_configurable_flash_default(authenticated, accident, llm):
     client, _ = authenticated
-    llm.settings.gemini_model = " "
+    llm.settings.hive_model = " "
+    llm.settings.hive_base_url = " "
     response = client.post(
         "/assistant/ask", data={"incident_id": accident.id, "question": "Explica"}
     )
     assert response.status_code == 200
-    assert (
-        llm.client.models.generate_content.call_args.kwargs["model"] == service.DEFAULT_GEMINI_MODEL
+    assert llm.client.post.call_args.kwargs["json"]["model"] == service.DEFAULT_HIVE_MODEL
+    assert llm.client.post.call_args.args == (f"{service.DEFAULT_HIVE_BASE_URL}/chat/completions",)
+    llm.factory.assert_called_once_with(timeout=30.0)
+
+
+def test_real_http_client_sends_hive_contract_without_network(llm, monkeypatch):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return Response(200, json={"choices": [{"message": {"content": "Explicación de prueba"}}]})
+
+    monkeypatch.setattr(
+        service, "Client", lambda **options: Client(transport=MockTransport(respond), **options)
     )
-    options = llm.factory.call_args.kwargs["http_options"]
-    assert options.timeout == 30000 and options.retry_options.attempts == 1
+    analysis = service.AssistantAnalysis(
+        inputs=prediction_request_from_incident(Incident(**ROAD_DATA)),
+        result=llm.predictor.predict.return_value,
+    )
+    assert service.explain_analysis(analysis, "Explica") == "Explicación de prueba"
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == "POST"
+    assert str(request.url) == "https://hive.test/api/v3/chat/completions"
+    assert request.headers["Authorization"] == f"Bearer {KEY}"
+    assert request.headers["Content-Type"] == "application/json"
+    payload = json.loads(request.content)
+    assert payload == {
+        "model": "custom-flash",
+        "messages": [
+            {"role": "system", "content": service.SYSTEM_INSTRUCTION},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "variables": analysis.inputs.model_dump(),
+                        "datos_legibles": analysis.input_rows(),
+                        "resultado_random_forest": analysis.result.model_dump(),
+                        "pregunta": "Explica",
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        ],
+        "stream": False,
+        "reasoning_effort": "none",
+        "max_completion_tokens": 600,
+    }
 
 
-@pytest.mark.parametrize("failure", [RuntimeError(KEY), TimeoutError("timeout"), None])
-def test_gemini_failure_is_safe_and_keeps_ml(authenticated, accident, llm, failure, caplog):
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"message": KEY}},
+        {"choices": []},
+        {"choices": [{"message": {"content": None}}]},
+        {"choices": [{"message": {"content": {"unexpected": KEY}}}]},
+    ],
+)
+def test_malformed_hive_response_is_safe_and_keeps_ml(authenticated, accident, llm, caplog, body):
     client, _ = authenticated
-    if failure:
-        llm.client.models.generate_content.side_effect = failure
-    else:
-        llm.client.models.generate_content.return_value.text = ""
+    llm.client.post.return_value.json.return_value = body
     response = client.post(
         "/assistant/ask",
         data={"incident_id": accident.id, "question": "Explica"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "Gemini no pudo responder" in response.text and "57.0 %" in response.text
+    assert "El asistente IA no pudo responder en este momento." in response.text
+    assert "57.0 %" in response.text
+    assert KEY not in response.text and KEY not in caplog.text
+    llm.client.post.assert_called_once()
+
+
+@pytest.mark.parametrize("failure", [RuntimeError(KEY), TimeoutError("timeout"), None])
+def test_hive_failure_is_safe_and_keeps_ml(authenticated, accident, llm, failure, caplog):
+    client, _ = authenticated
+    if failure:
+        llm.client.post.side_effect = failure
+    else:
+        llm.client.post.return_value.json.return_value = {"choices": [{"message": {"content": ""}}]}
+    response = client.post(
+        "/assistant/ask",
+        data={"incident_id": accident.id, "question": "Explica"},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert "El asistente IA no pudo responder" in response.text and "57.0 %" in response.text
     assert KEY not in response.text and KEY not in caplog.text
 
 
 def test_permission_denied_logs_only_type_and_http_code(authenticated, accident, llm, caplog):
-    from google.genai.errors import ClientError
-
     client, _ = authenticated
     caplog.set_level(logging.WARNING, logger=service.__name__)
-    llm.client.models.generate_content.side_effect = ClientError(
-        403,
-        response_json={"error": {"code": 403, "status": "PERMISSION_DENIED", "message": KEY}},
+    request = Request(
+        "POST",
+        "https://hive.test/api/v3/chat/completions",
+        headers={"Authorization": f"Bearer {KEY}"},
+    )
+    error_response = Response(403, request=request, json={"error": {"message": KEY}})
+    llm.client.post.return_value.raise_for_status.side_effect = HTTPStatusError(
+        KEY, request=request, response=error_response
     )
     response = client.post(
         "/assistant/ask",
@@ -278,11 +377,11 @@ def test_permission_denied_logs_only_type_and_http_code(authenticated, accident,
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "Gemini no pudo responder en este momento." in response.text
+    assert "El asistente IA no pudo responder en este momento." in response.text
     assert "57.0 %" in response.text
     records = [r for r in caplog.records if r.name == service.__name__]
     assert len(records) == 1
-    assert records[0].getMessage() == "Fallo del LLM: tipo=ClientError codigo=403"
+    assert records[0].getMessage() == "Fallo del LLM: tipo=HTTPStatusError codigo=403"
     assert records[0].levelno == logging.WARNING
     assert records[0].exc_info is None
     assert KEY not in response.text and KEY not in caplog.text
@@ -293,21 +392,23 @@ def test_non_numeric_error_code_cannot_leak_credentials(authenticated, accident,
     caplog.set_level(logging.WARNING, logger=service.__name__)
     failure = RuntimeError(KEY)
     failure.code = KEY
-    llm.client.models.generate_content.side_effect = failure
+    llm.client.post.side_effect = failure
     response = client.post(
         "/assistant/ask",
         data={"incident_id": accident.id, "question": "Explica"},
         headers={"HX-Request": "true"},
     )
     assert response.status_code == 200
-    assert "Gemini no pudo responder en este momento." in response.text
+    assert "El asistente IA no pudo responder en este momento." in response.text
     assert "tipo=RuntimeError codigo=None" in caplog.text
     assert KEY not in response.text and KEY not in caplog.text
 
 
 def test_question_and_response_are_escaped_and_key_redacted(authenticated, accident, llm):
     client, _ = authenticated
-    llm.client.models.generate_content.return_value.text = f"<script>alert(1)</script> {KEY}"
+    llm.client.post.return_value.json.return_value = {
+        "choices": [{"message": {"content": f"<script>alert(1)</script> {KEY}"}}]
+    }
     html = client.post(
         "/assistant/ask",
         data={"incident_id": accident.id, "question": "<img src=x onerror=alert(1)>"},
@@ -342,7 +443,7 @@ def test_unknown_accident_does_not_call_services(authenticated, llm):
     llm.factory.assert_not_called()
 
 
-def test_model_failure_does_not_call_gemini(authenticated, accident, llm):
+def test_model_failure_does_not_call_hive(authenticated, accident, llm):
     client, _ = authenticated
     llm.predictor.predict.side_effect = RuntimeError("Model unavailable")
     html = client.post(
